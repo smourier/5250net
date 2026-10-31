@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "5250net": {
+      "commandName": "Project",
+      "commandLineArgs": "localhost"
+    }
+  }
+}

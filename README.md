@@ -1,7 +1,7 @@
 # 5250net
 
 An independent IBM i TN5250 terminal, written in C# as a standard .NET 10 console application.
-MIT licensed. No NuGet package dependencies. Native AOT publishing is enabled.
+MIT licensed. `System.CommandLine` is the only NuGet package dependency. Native AOT publishing is enabled.
 
 This is an initial implementation of the core display protocol. It is not a port of another terminal emulator.
 It has not yet been validated against a live IBM i system and does not claim full ACS compatibility.
@@ -12,9 +12,9 @@ Install the .NET 10 SDK. From the repository root, run the following commands.
 
 ```powershell
 dotnet build 5250net.slnx
-dotnet run --project src\Terminal5250 -- --help
-dotnet run --project src\Terminal5250 -- myibmi.example.com
-dotnet run --project src\Terminal5250 -- myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
+dotnet run --project 5250net -- --help
+dotnet run --project 5250net -- myibmi.example.com
+dotnet run --project 5250net -- myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
 ```
 
 The default port is 23 for Telnet and 992 for direct TLS. Set `--port` to use another port.
@@ -22,7 +22,7 @@ The default EBCDIC code page is 37. The default keyboard type is `USB`.
 The keyboard type and code page must match the configuration of the IBM i virtual device.
 Use `--help` to see all options.
 
-On Linux, use the equivalent project paths `src/Terminal5250` and `tests/Terminal5250.Tests` in these commands.
+On Linux, use the equivalent project paths `5250net` and `5250net.Tests` in these commands.
 
 ## Native AOT
 
@@ -31,11 +31,11 @@ Windows requires Visual Studio C++ build tools and a Windows SDK.
 Linux requires the .NET Native AOT prerequisites for the distribution, including a native compiler and zlib development files.
 
 ```powershell
-dotnet publish src\Terminal5250 -c Release -r win-x64
-dotnet publish src\Terminal5250 -c Release -r linux-x64
+dotnet publish 5250net -c Release -r win-x64
+dotnet publish 5250net -c Release -r linux-x64
 ```
 
-The second command runs on Linux, using `src/Terminal5250` as the project path.
+The second command runs on Linux, using `5250net` as the project path.
 Cross-compiling Windows to Linux or Linux to Windows is not supported by Native AOT.
 The output is in the project's `bin\Release\net10.0\<rid>\publish` directory.
 No .NET runtime installation is required on the destination machine.
@@ -77,8 +77,11 @@ When the window is too small, resize it to resume input. Ctrl+Q remains availabl
 Some terminal hosts intercept function keys, Shift+function keys, or Ctrl+S.
 Configure the terminal host to pass these keys through. On Unix, disable software flow control if it captures Ctrl+S.
 
-Color, reverse image, and non-display attributes are rendered using `System.Console`.
-Underline, blinking, and column separator presentation are not currently rendered.
+Color, reverse image, underline, and non-display attributes are rendered in the console.
+Windows rendering uses portable `System.Console` APIs, with underscores marking blank underlined fields.
+Unix terminals use ANSI underlining, with the same underscore fallback when `TERM` is `dumb`.
+No native console imports are used.
+Blinking and column separator presentation are not currently rendered.
 Protected fields cannot be edited. Non-display fields remain blank while retaining their input data for submission.
 
 ## Protocol scope
@@ -104,10 +107,10 @@ The screen buffer and save records contain entered field data, including passwor
 
 ## Verification
 
-Run the dependency-free protocol test executable.
+Run the protocol test executable.
 
 ```powershell
-dotnet run --project tests\Terminal5250.Tests -p:PublishAot=false
+dotnet run --project 5250net.Tests -p:PublishAot=false
 ```
 
 The tests use synthetic public-protocol fixtures and loopback servers.
@@ -118,7 +121,8 @@ CI builds, tests, and publishes Native AOT on Windows and Linux.
 
 Before relying on this terminal, test sign-on, command entry, password fields, function keys, subfiles, and System Request against your host.
 Native AOT publishing, native executable smoke tests, and the protocol suite have been verified on Windows x64 and Ubuntu x64.
-The tests currently perform 61 checks, including rejection of untrusted TLS certificates and 1000 malformed screen fixtures.
+The tests cover field rendering, default input cursor positioning, orderly Telnet and TLS shutdown, and argument parsing.
+They also cover rejection of untrusted TLS certificates and 1000 malformed screen fixtures.
 
 ## Protocol references
 

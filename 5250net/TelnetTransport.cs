@@ -3,7 +3,6 @@ namespace Terminal5250;
 internal sealed class TelnetTransport(Stream stream, Options options)
 {
 #pragma warning disable IDE1006
-#pragma warning disable CA1707
     private const byte IAC = 255;
     private const byte DONT = 254;
     private const byte DO = 253;
@@ -23,7 +22,6 @@ internal sealed class TelnetTransport(Stream stream, Options options)
     private const byte NEW_ENV_VALUE = 1;
     private const byte NEW_ENV_ESC = 2;
     private const byte NEW_ENV_USERVAR = 3;
-#pragma warning restore CA1707
 #pragma warning restore IDE1006
 
     private const int _optionCount = 256;
@@ -161,14 +159,14 @@ internal sealed class TelnetTransport(Stream stream, Options options)
         List<byte> response = [TELQUAL_IS];
         if (option == TELOPT_TTYPE)
         {
-            response.AddRange(Encoding.ASCII.GetBytes(options._wide ? _wideTerminal : _narrowTerminal));
+            response.AddRange(Encoding.ASCII.GetBytes(options.Wide ? _wideTerminal : _narrowTerminal));
         }
         else if (option == TELOPT_NEW_ENVIRON)
         {
             var requested = RequestedVariables(data);
-            AddVariable(response, requested, _deviceVariable, options._device);
-            AddVariable(response, requested, _keyboardVariable, options._keyboard);
-            AddVariable(response, requested, _codePageVariable, options._codePage.ToString(CultureInfo.InvariantCulture));
+            AddVariable(response, requested, _deviceVariable, options.Device);
+            AddVariable(response, requested, _keyboardVariable, options.Keyboard);
+            AddVariable(response, requested, _codePageVariable, options.CodePage.ToString(CultureInfo.InvariantCulture));
         }
         else
         {
@@ -191,7 +189,7 @@ internal sealed class TelnetTransport(Stream stream, Options options)
             {
                 if (i > 1)
                 {
-                    names.Add(Encoding.ASCII.GetString(name.ToArray()));
+                    names.Add(Encoding.ASCII.GetString([.. name]));
                     name.Clear();
                 }
             }

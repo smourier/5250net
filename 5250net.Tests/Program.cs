@@ -19,6 +19,8 @@ internal static class Program
         Editing();
         OptionsParsing();
         FieldRules();
+        DefaultInputCursor();
+        FieldRendering();
         Startup();
         Fuzz();
         await TransportAsync(false);
@@ -56,17 +58,48 @@ internal static class Program
     private static void ScreenAndInput()
     {
         var display = NewDisplay();
-        Check(!display._locked && display._cursor == 89, nameof(ScreenAndInput));
-        Check(display._inputFields.Count == 2 && display._inputFields[0]._start == 89, nameof(ScreenAndInput));
+        Check(!display.Locked && display.Cursor == 89, nameof(ScreenAndInput));
+        Check(display.InputFields.Count == 2 && display.InputFields[0].Start == 89, nameof(ScreenAndInput));
         display.Key(Key(ConsoleKey.A, 'a'));
         display.Key(Key(ConsoleKey.Tab));
         display.Key(Key(ConsoleKey.P, 'p'));
         var record = display.Key(Key(ConsoleKey.Enter))!;
         Check(record.AsSpan(10).SequenceEqual(new byte[] { 3, 11, 0xF1, 0x11, 2, 10, 0x81, 0x11, 3, 10, 0x97 }), nameof(ScreenAndInput));
-        Check(display._locked && display.Key(Key(ConsoleKey.Enter)) == null, nameof(ScreenAndInput));
+        Check(display.Locked && display.Key(Key(ConsoleKey.Enter)) == null, nameof(ScreenAndInput));
         display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 4, 0x52, 0, 0], 1));
         var repeated = display.Key(Key(ConsoleKey.Enter))!;
         Check(repeated.Length == record.Length, nameof(ScreenAndInput));
+    }
+
+    private static void DefaultInputCursor()
+    {
+        var display = new Display(_encoding, false);
+        display.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+            0x11, 2, 9, 0x1D, 0x40, 0, 0x24, 0, 5, 4, 0x52, 0, 0], 3));
+        Check(display.Cursor == 89 && !display.Locked, nameof(DefaultInputCursor));
+        display.Key(Key(ConsoleKey.A, 'a'));
+        Check(!display.InputError && display.Data[89] == 0x81, nameof(DefaultInputCursor));
+        var reply = display.Key(Key(ConsoleKey.Enter))!;
+        Check(reply.AsSpan(13).SequenceEqual(new byte[] { 0x11, 2, 10, 0x81 }), nameof(DefaultInputCursor));
+    }
+
+    private static void FieldRendering()
+    {
+        var display = NewDisplay();
+        var row = ConsoleRenderer.BuildRow(display, 1, true);
+        Check(row.Contains(";4m", StringComparison.Ordinal), nameof(FieldRendering));
+        row = ConsoleRenderer.BuildRow(display, 1, false);
+        Check(row.AsSpan(9, 5).SequenceEqual("_____"), nameof(FieldRendering));
+        display.Key(Key(ConsoleKey.A, 'a'));
+        row = ConsoleRenderer.BuildRow(display, 1, true);
+        Check(row.Contains('a'), nameof(FieldRendering));
+        row = ConsoleRenderer.BuildRow(display, 1, false);
+        Check(row.AsSpan(9, 5).SequenceEqual("a____"), nameof(FieldRendering));
+        display.Key(Key(ConsoleKey.Tab));
+        display.Key(Key(ConsoleKey.P, 'p'));
+        Check(!ConsoleRenderer.BuildRow(display, 2, true).Contains('p'), nameof(FieldRendering));
+        Check(ConsoleRenderer.BuildRow(display, 2, false).AsSpan(9, 8).SequenceEqual("        "), nameof(FieldRendering));
+        Check(display.Data[169] == 0x97, nameof(FieldRendering));
     }
 
     private static void FunctionMasks()
@@ -101,7 +134,7 @@ internal static class Program
         var reply = display.Apply(GdsRecord.Create([4, 0x72], 6)).Single();
         Check(reply[12] == 0 && reply.Length == 26, nameof(ReadModes));
         display.Apply(GdsRecord.Create([], 10));
-        Check(display._locked && display.Key(Key(ConsoleKey.Enter)) == null, nameof(ReadModes));
+        Check(display.Locked && display.Key(Key(ConsoleKey.Enter)) == null, nameof(ReadModes));
     }
 
     private static void Malformed()
@@ -141,7 +174,7 @@ internal static class Program
         var snapshot = display.Apply(GdsRecord.Create([4, 2], 4)).Single();
         display.Apply(GdsRecord.Create([4, 0x40]));
         display.Apply(GdsRecord.Create(snapshot.AsSpan(10), 5));
-        Check(display._inputFields.Count == 2 && display._data[89] == 0x81 && display._cursor == 90, nameof(SaveRestore));
+        Check(display.InputFields.Count == 2 && display.Data[89] == 0x81 && display.Cursor == 90, nameof(SaveRestore));
         Check(display.Key(Key(ConsoleKey.Enter))![16] == 0x81, nameof(SaveRestore));
     }
 
@@ -149,42 +182,50 @@ internal static class Program
     {
         var display = NewDisplay();
         display.Apply(GdsRecord.Create([4, 0x20, 0]));
-        Check(display._columns == 132 && display._rows == 27, nameof(WideAndQuery));
+        Check(display.Columns == 132 && display.Rows == 27, nameof(WideAndQuery));
         display.Apply(GdsRecord.Create([4, 0x40]));
-        Check(display._columns == 80, nameof(WideAndQuery));
+        Check(display.Columns == 80, nameof(WideAndQuery));
         var query = display.Apply(GdsRecord.Create([4, 0xF3, 0, 5, 0xD9, 0x70, 0], 3)).Single();
         Check(query.Length == 71 && query[12] == 0x88 && query[60] == 0x31, nameof(WideAndQuery));
         display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 0x11, 1, 0, 0x1D, 0x40, 0, 0x20, 0, 3, 0xC1]));
-        Check(display._inputFields.Single()._start == 0 && display._data[0] == 0xC1, nameof(WideAndQuery));
+        Check(display.InputFields.Single().Start == 0 && display.Data[0] == 0xC1, nameof(WideAndQuery));
     }
 
     private static void Editing()
     {
         var display = NewDisplay(format: 0x20);
         display.Key(Key(ConsoleKey.A, 'a'));
-        Check(display._data[89] == 0xC1, nameof(Editing));
+        Check(display.Data[89] == 0xC1, nameof(Editing));
         display.Key(Key(ConsoleKey.B, 'b'));
         display.Key(Key(ConsoleKey.Backspace));
-        Check(display._data[90] == 0, nameof(Editing));
+        Check(display.Data[90] == 0, nameof(Editing));
         display.Key(Key(ConsoleKey.Home));
         display.Key(Key(ConsoleKey.Insert));
         display.Key(Key(ConsoleKey.C, 'c'));
-        Check(display._data[89] == 0xC3 && display._data[90] == 0xC1, nameof(Editing));
+        Check(display.Data[89] == 0xC3 && display.Data[90] == 0xC1, nameof(Editing));
         display.Key(Key(ConsoleKey.Home));
         display.Key(Key(ConsoleKey.End, control: true));
-        Check(display._data[89] == 0 && display._data[90] == 0, nameof(Editing));
+        Check(display.Data[89] == 0 && display.Data[90] == 0, nameof(Editing));
         display.Key(Key(ConsoleKey.UpArrow));
         display.Key(Key(ConsoleKey.A, 'a'));
-        Check(display._inputError, nameof(Editing));
+        Check(display.InputError, nameof(Editing));
         display.Key(Key(ConsoleKey.Escape));
-        Check(!display._inputError, nameof(Editing));
+        Check(!display.InputError, nameof(Editing));
     }
 
     private static void OptionsParsing()
     {
-        Check(Options.Parse(["host", "--tls"])._port == 992, nameof(OptionsParsing));
-        Check(Options.Parse(["host", "--port", "1234"])._port == 1234, nameof(OptionsParsing));
-        string[][] invalid = [["host", "--port", "0"], ["host", "--port"], ["host", "--device", "bad name"], ["host", "--unknown"]];
+        Check(Options.Parse(["host", "--tls"]).Port == 992, nameof(OptionsParsing));
+        Check(Options.Parse(["host", "--port", "1234"]).Port == 1234, nameof(OptionsParsing));
+        var equals = Options.Parse(["--port=2223", "host", "--code-page=297", "--device=term01"]);
+        Check(equals.Host == "host" && equals.Port == 2223 && equals.CodePage == 297 && equals.Device == "TERM01", nameof(OptionsParsing));
+        Check(Options.Parse(["host", "--tls=false"]).Port == 23, nameof(OptionsParsing));
+        Check(Options.Parse(["-h"]).Help, nameof(OptionsParsing));
+        Check(Options.Parse(["host", "--help"]).Help, nameof(OptionsParsing));
+        Check(Options.Parse(["--version"]).Version, nameof(OptionsParsing));
+        Check(Options.Parse([]).Help, nameof(OptionsParsing));
+        string[][] invalid = [["host", "--port", "0"], ["host", "--port"], ["host", "--device", "bad name"], ["host", "--unknown"],
+            ["host", "--port", "not-a-number"], ["host", "extra-host"]];
         foreach (var args in invalid)
         {
             try
@@ -203,7 +244,7 @@ internal static class Program
     {
         var display = NewDisplay(format: 0x40);
         display.Key(Key(ConsoleKey.A, 'a'));
-        Check(display.Key(Key(ConsoleKey.Enter)) == null && display._inputError, nameof(FieldRules));
+        Check(display.Key(Key(ConsoleKey.Enter)) == null && display.InputError, nameof(FieldRules));
         display.Key(Key(ConsoleKey.Escape));
         display.Key(Key(ConsoleKey.Enter, control: true));
         Check(display.Key(Key(ConsoleKey.Enter)) != null, nameof(FieldRules));
@@ -219,11 +260,11 @@ internal static class Program
         display.Key(Key(ConsoleKey.Tab));
         display.Key(Key(ConsoleKey.P, 'p'));
         display.Key(Key(ConsoleKey.Tab, shift: true));
-        Check(display._cursor == 89, nameof(FieldRules));
+        Check(display.Cursor == 89, nameof(FieldRules));
         display.Apply(GdsRecord.Create([4, 0x21, 0x22, 0xF0, 0xF0, 0xF0, 0xF1]));
-        Check(display._inputError, nameof(FieldRules));
+        Check(display.InputError, nameof(FieldRules));
         display.Key(Key(ConsoleKey.Escape));
-        Check(!display._inputError && display._data[23 * 80] == 0, nameof(FieldRules));
+        Check(!display.InputError && display.Data[23 * 80] == 0, nameof(FieldRules));
     }
 
     private static void Startup()
@@ -385,6 +426,18 @@ internal static class Program
         answer = new byte[14];
         await serverStream.ReadExactlyAsync(answer, cancellation.Token);
         Check(answer.AsSpan(10).SequenceEqual(new byte[] { 255, 255, 255, 239 }), nameof(TransportAsync));
+        var reading = transport.ReadAsync(cancellation.Token);
+        var disconnecting = Terminal5250.Program.DisconnectAsync(client, clientStream, reading);
+        var eof = await serverStream.ReadAsync(new byte[1], cancellation.Token);
+        Check(eof == 0, nameof(TransportAsync));
+        if (serverStream is SslStream secure)
+        {
+            await secure.ShutdownAsync();
+        }
+
+        server.Client.Shutdown(SocketShutdown.Send);
+        await disconnecting.WaitAsync(cancellation.Token);
+        Check(await reading == null, nameof(TransportAsync));
     }
 
     private static async Task<byte[]> ReadSubnegotiationAsync(Stream stream, CancellationToken cancellation)

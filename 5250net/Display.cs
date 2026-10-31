@@ -48,16 +48,16 @@ internal sealed class Display(Encoding encoding, bool wide)
     private byte[]? _errorLine;
     private int _errorLineStart;
 
-    internal bool _messageWaiting => _message;
-    internal bool _insertMode => _insert;
+    internal bool MessageWaiting => _message;
+    internal bool FnsertMode => _insert;
 
-    internal int _rows { get; private set; } = _narrowRows;
-    internal int _columns { get; private set; } = _narrowColumns;
-    internal int _cursor { get; private set; }
-    internal bool _locked { get; private set; } = true;
-    internal bool _inputError { get; private set; }
-    internal ReadOnlySpan<byte> _data => _cells;
-    internal IReadOnlyList<InputField> _inputFields => _fields;
+    internal int Rows { get; private set; } = _narrowRows;
+    internal int Columns { get; private set; } = _narrowColumns;
+    internal int Cursor { get; private set; }
+    internal bool Locked { get; private set; } = true;
+    internal bool InputError { get; private set; }
+    internal ReadOnlySpan<byte> Data => _cells;
+    internal IReadOnlyList<InputField> InputFields => _fields;
 
     internal List<byte[]> Apply(byte[] record)
     {
@@ -81,7 +81,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
             case 10:
                 _readCommand = 0;
-                _locked = true;
+                Locked = true;
                 replies.Add(GdsRecord.Create([], 10));
                 return replies;
 
@@ -121,7 +121,7 @@ internal sealed class Display(Encoding encoding, bool wide)
                     _readCommand = 0;
                     _insertCursor = 0;
                     _insert = false;
-                    _locked = true;
+                    Locked = true;
                     break;
 
                 case DisplayCommand.Roll:
@@ -184,12 +184,12 @@ internal sealed class Display(Encoding encoding, bool wide)
         var top = Take(data, ref i);
         var bottom = Take(data, ref i);
         var lines = parameter & 0x1F;
-        if (top == 0 || bottom > _rows || top >= bottom || lines > bottom - top)
+        if (top == 0 || bottom > Rows || top >= bottom || lines > bottom - top)
             throw new InvalidDataException(Resources.BadAddress);
 
-        var start = (top - 1) * _columns;
-        var shift = lines * _columns;
-        var count = (bottom - top + 1) * _columns - shift;
+        var start = (top - 1) * Columns;
+        var shift = lines * Columns;
+        var count = (bottom - top + 1) * Columns - shift;
         if ((parameter & 0x80) != 0)
         {
             Array.Copy(_cells, start, _cells, start + shift, count);
@@ -202,44 +202,44 @@ internal sealed class Display(Encoding encoding, bool wide)
 
     private void WriteError(ReadOnlySpan<byte> data, ref int i)
     {
-        var row = _header.Length > 3 && _header[3] > 0 && _header[3] <= _rows ? _header[3] : _rows;
-        _errorLineStart = (row - 1) * _columns;
-        _errorLine = _cells.AsSpan(_errorLineStart, _columns).ToArray();
+        var row = _header.Length > 3 && _header[3] > 0 && _header[3] <= Rows ? _header[3] : Rows;
+        _errorLineStart = (row - 1) * Columns;
+        _errorLine = _cells.AsSpan(_errorLineStart, Columns).ToArray();
         var column = 0;
         while (i < data.Length && data[i] != _escape)
         {
             var value = Take(data, ref i);
             if (value == 0x13)
             {
-                _cursor = Address(data, ref i);
+                Cursor = Address(data, ref i);
                 continue;
             }
 
-            if (column >= _columns)
+            if (column >= Columns)
                 throw new InvalidDataException(Resources.BadRecord);
 
             _cells[_errorLineStart + column++] = value;
         }
 
-        _inputError = true;
-        _locked = false;
+        InputError = true;
+        Locked = false;
         _insert = false;
     }
 
     private void Clear(bool alternate)
     {
-        _columns = alternate ? _wideColumns : _narrowColumns;
-        _rows = alternate ? _wideRows : _narrowRows;
-        _cells = new byte[_rows * _columns];
+        Columns = alternate ? _wideColumns : _narrowColumns;
+        Rows = alternate ? _wideRows : _narrowRows;
+        _cells = new byte[Rows * Columns];
         _cells[0] = _normalAttribute;
         _fields.Clear();
         _header = [];
-        _cursor = 0;
+        Cursor = 0;
         _insertCursor = 0;
         _address = 0;
         _readCommand = 0;
-        _locked = true;
-        _inputError = false;
+        Locked = true;
+        InputError = false;
         _errorLine = null;
         _insert = false;
     }
@@ -302,7 +302,7 @@ internal sealed class Display(Encoding encoding, bool wide)
                 case DisplayOrder.InsertCursor:
                 case DisplayOrder.MoveCursor:
                     _insertCursor = Address(data, ref i);
-                    _cursor = _insertCursor;
+                    Cursor = _insertCursor;
                     break;
 
                 case DisplayOrder.StartOfField:
@@ -361,24 +361,28 @@ internal sealed class Display(Encoding encoding, bool wide)
             throw new InvalidDataException(Resources.BadField);
 
         var start = _address + 1;
-        var existing = _fields.Find(f => f._start == start);
+        var existing = _fields.Find(f => f.Start == start);
         if (existing != null && input)
         {
-            existing._format1 = first;
-            existing._format2 = second;
-            existing._modified = (first & 8) != 0;
-            length = existing._length;
+            existing.Format1 = first;
+            existing.Format2 = second;
+            existing.Modified = (first & 8) != 0;
+            length = existing.Length;
         }
         else
         {
             if (length == 0 || (first & 7) == 7 && length < 2 || start + length > _cells.Length || _fields.Count >= _maximumFields ||
-                input && _fields.Any(f => start < f._end && start + length > f._start))
+                input && _fields.Any(f => start < f.End && start + length > f.Start))
                 throw new InvalidDataException(Resources.BadField);
 
             if (input)
             {
                 _fields.Add(new InputField(start, length, first, second, transparent));
-                _fields.Sort((left, right) => left._start.CompareTo(right._start));
+                _fields.Sort((left, right) => left.Start.CompareTo(right.Start));
+                if (_fields.Count == 1 && _insertCursor == 0)
+                {
+                    _insertCursor = start;
+                }
             }
 
             _cells[(start + length) % _cells.Length] = _normalAttribute;
@@ -394,7 +398,7 @@ internal sealed class Display(Encoding encoding, bool wide)
         _explicitAddress = false;
         if (input)
         {
-            _locked = true;
+            Locked = true;
         }
     }
 
@@ -403,19 +407,19 @@ internal sealed class Display(Encoding encoding, bool wide)
         var action = control >> 5;
         if (action != 0)
         {
-            _locked = true;
+            Locked = true;
         }
 
         foreach (var field in _fields)
         {
-            if (!field._bypass && (action is 5 or 7 || action is 4 or 6 && field._modified))
+            if (!field.Bypass && (action is 5 or 7 || action is 4 or 6 && field.Modified))
             {
-                _cells.AsSpan(field._start, field._length).Clear();
+                _cells.AsSpan(field.Start, field.Length).Clear();
             }
 
-            if (action is 3 or 7 || !field._bypass && action is 2 or 5 or 6)
+            if (action is 3 or 7 || !field.Bypass && action is 2 or 5 or 6)
             {
-                field._modified = false;
+                field.Modified = false;
             }
         }
     }
@@ -424,13 +428,13 @@ internal sealed class Display(Encoding encoding, bool wide)
     {
         if ((control & 8) != 0)
         {
-            if (_locked && (control & 0x40) == 0)
+            if (Locked && (control & 0x40) == 0)
             {
-                _cursor = _insertCursor;
+                Cursor = _insertCursor;
             }
 
-            _locked = false;
-            _inputError = false;
+            Locked = false;
+            InputError = false;
         }
 
         if ((control & 2) != 0)
@@ -450,13 +454,13 @@ internal sealed class Display(Encoding encoding, bool wide)
         using var writer = new BinaryWriter(stream);
         writer.Write(_escape);
         writer.Write((byte)0x12);
-        writer.Write(_rows);
-        writer.Write(_columns);
-        writer.Write(_cursor);
+        writer.Write(Rows);
+        writer.Write(Columns);
+        writer.Write(Cursor);
         writer.Write(_insertCursor);
-        writer.Write(_locked);
+        writer.Write(Locked);
         writer.Write(_insert);
-        writer.Write(_inputError);
+        writer.Write(InputError);
         writer.Write(_errorLineStart);
         writer.Write(_errorLine?.Length ?? 0);
         if (_errorLine != null)
@@ -473,13 +477,13 @@ internal sealed class Display(Encoding encoding, bool wide)
         writer.Write(_fields.Count);
         foreach (var field in _fields)
         {
-            writer.Write(field._start);
-            writer.Write(field._length);
-            writer.Write(field._format1);
-            writer.Write(field._format2);
-            writer.Write(field._transparent);
-            writer.Write(field._modified);
-            writer.Write(field._exited);
+            writer.Write(field.Start);
+            writer.Write(field.Length);
+            writer.Write(field.Format1);
+            writer.Write(field.Format2);
+            writer.Write(field.Transparent);
+            writer.Write(field.Modified);
+            writer.Write(field.Exited);
         }
 
         return stream.ToArray();
@@ -526,13 +530,13 @@ internal sealed class Display(Encoding encoding, bool wide)
         {
             var start = reader.ReadInt32();
             var length = reader.ReadInt32();
-            if (start < 0 || length <= 0 || start > cells.Length - length || fields.Any(f => start < f._end && start + length > f._start))
+            if (start < 0 || length <= 0 || start > cells.Length - length || fields.Any(f => start < f.End && start + length > f.Start))
                 throw new InvalidDataException(Resources.BadField);
 
             var field = new InputField(start, length, reader.ReadByte(), reader.ReadByte(), reader.ReadBoolean())
             {
-                _modified = reader.ReadBoolean(),
-                _exited = reader.ReadBoolean(),
+                Modified = reader.ReadBoolean(),
+                Exited = reader.ReadBoolean(),
             };
 
             fields.Add(field);
@@ -541,13 +545,13 @@ internal sealed class Display(Encoding encoding, bool wide)
         if (stream.Position != stream.Length)
             throw new InvalidDataException(Resources.BadRecord);
 
-        _rows = rows;
-        _columns = columns;
-        _cursor = cursor;
+        Rows = rows;
+        Columns = columns;
+        Cursor = cursor;
         _insertCursor = insertCursor;
-        _locked = locked;
+        Locked = locked;
         _insert = insert;
-        _inputError = inputError;
+        InputError = inputError;
         _errorLine = errorLength == 0 ? null : errorLine;
         _errorLineStart = errorStart;
         _readCommand = read;
@@ -585,10 +589,10 @@ internal sealed class Display(Encoding encoding, bool wide)
         if (allowZero && row == 1 && column == 0)
             return -1;
 
-        if (row == 0 || row > _rows || column == 0 || column > _columns)
+        if (row == 0 || row > Rows || column == 0 || column > Columns)
             throw new InvalidDataException(Resources.BadAddress);
 
-        return (row - 1) * _columns + column - 1;
+        return (row - 1) * Columns + column - 1;
     }
 
     private static byte Take(ReadOnlySpan<byte> data, ref int i)
@@ -612,21 +616,21 @@ internal sealed class Display(Encoding encoding, bool wide)
         if (control && key.Key is ConsoleKey.A or ConsoleKey.S)
             return GdsRecord.Create([], flags: key.Key == ConsoleKey.A ? (byte)0x40 : (byte)4);
 
-        if (control && key.Key == ConsoleKey.Enter && !_locked && !_inputError)
+        if (control && key.Key == ConsoleKey.Enter && !Locked && !InputError)
         {
             var current = CurrentField();
-            if (current == null || current._bypass)
+            if (current == null || current.Bypass)
             {
-                _inputError = true;
+                InputError = true;
                 return null;
             }
 
-            _cells.AsSpan(_cursor, current._end - _cursor).Clear();
-            current._modified = true;
+            _cells.AsSpan(Cursor, current.End - Cursor).Clear();
+            current.Modified = true;
             if (FinishField(current, true))
             {
                 Tab(false);
-                if ((current._format2 & 0x80) != 0)
+                if ((current.Format2 & 0x80) != 0)
                     return Submit(_enterAid);
             }
 
@@ -635,17 +639,14 @@ internal sealed class Display(Encoding encoding, bool wide)
 
         if (key.Key == ConsoleKey.Escape)
         {
-            if (_errorLine != null)
-            {
-                _errorLine.CopyTo(_cells, _errorLineStart);
-                _errorLine = null;
-            }
+            _errorLine?.CopyTo(_cells, _errorLineStart);
+            _errorLine = null;
 
-            _inputError = false;
+            InputError = false;
             return null;
         }
 
-        if (_inputError && key.Key == ConsoleKey.H && (key.Modifiers & ConsoleModifiers.Alt) != 0 && _errorLine != null)
+        if (InputError && key.Key == ConsoleKey.H && (key.Modifiers & ConsoleModifiers.Alt) != 0 && _errorLine != null)
         {
             var error = new byte[2];
             for (var i = 0; i < 4; i++)
@@ -656,7 +657,7 @@ internal sealed class Display(Encoding encoding, bool wide)
             return GdsRecord.Create(error, flags: 1);
         }
 
-        if (_locked || _inputError)
+        if (Locked || InputError)
             return null;
 
         byte aid = key.Key switch
@@ -676,30 +677,30 @@ internal sealed class Display(Encoding encoding, bool wide)
         switch (key.Key)
         {
             case ConsoleKey.Tab:
-                if (field != null && !field._bypass && !FinishField(field, false))
+                if (field != null && !field.Bypass && !FinishField(field, false))
                     break;
 
                 Tab(shift);
                 break;
 
             case ConsoleKey.LeftArrow:
-                _cursor = (_cursor + _cells.Length - 1) % _cells.Length;
+                Cursor = (Cursor + _cells.Length - 1) % _cells.Length;
                 break;
 
             case ConsoleKey.RightArrow:
-                _cursor = (_cursor + 1) % _cells.Length;
+                Cursor = (Cursor + 1) % _cells.Length;
                 break;
 
             case ConsoleKey.UpArrow:
-                _cursor = (_cursor + _cells.Length - _columns) % _cells.Length;
+                Cursor = (Cursor + _cells.Length - Columns) % _cells.Length;
                 break;
 
             case ConsoleKey.DownArrow:
-                _cursor = (_cursor + _columns) % _cells.Length;
+                Cursor = (Cursor + Columns) % _cells.Length;
                 break;
 
             case ConsoleKey.Home:
-                _cursor = field?._start ?? _fields.FirstOrDefault(f => !f._bypass)?._start ?? 0;
+                Cursor = field?.Start ?? _fields.FirstOrDefault(f => !f.Bypass)?.Start ?? 0;
                 break;
 
             case ConsoleKey.End:
@@ -707,18 +708,18 @@ internal sealed class Display(Encoding encoding, bool wide)
                 {
                     if (control)
                     {
-                        _cells.AsSpan(_cursor, field._end - _cursor).Clear();
-                        field._modified = true;
+                        _cells.AsSpan(Cursor, field.End - Cursor).Clear();
+                        field.Modified = true;
                     }
                     else
                     {
-                        var end = field._end - 1;
-                        while (end > field._start && _cells[end] is 0 or _blank)
+                        var end = field.End - 1;
+                        while (end > field.Start && _cells[end] is 0 or _blank)
                         {
                             end--;
                         }
 
-                        _cursor = Math.Min(end + 1, field._end - 1);
+                        Cursor = Math.Min(end + 1, field.End - 1);
                     }
                 }
 
@@ -726,17 +727,17 @@ internal sealed class Display(Encoding encoding, bool wide)
 
             case ConsoleKey.Add:
             case ConsoleKey.Subtract:
-                if (field == null || field._bypass)
+                if (field == null || field.Bypass)
                 {
-                    _inputError = true;
+                    InputError = true;
                     break;
                 }
 
-                _cells.AsSpan(_cursor, field._end - _cursor).Clear();
-                field._modified = true;
-                if ((field._format1 & 7) == 7)
+                _cells.AsSpan(Cursor, field.End - Cursor).Clear();
+                field.Modified = true;
+                if ((field.Format1 & 7) == 7)
                 {
-                    _cells[field._end - 1] = encoding.GetBytes(key.Key == ConsoleKey.Subtract ? _minusSign : _space)[0];
+                    _cells[field.End - 1] = encoding.GetBytes(key.Key == ConsoleKey.Subtract ? _minusSign : _space)[0];
                 }
 
                 if (FinishField(field, true))
@@ -752,28 +753,28 @@ internal sealed class Display(Encoding encoding, bool wide)
 
             case ConsoleKey.Backspace:
             case ConsoleKey.Delete:
-                if (field == null || field._bypass || key.Key == ConsoleKey.Backspace && _cursor == field._start)
+                if (field == null || field.Bypass || key.Key == ConsoleKey.Backspace && Cursor == field.Start)
                 {
-                    _inputError = true;
+                    InputError = true;
                     break;
                 }
 
                 if (key.Key == ConsoleKey.Backspace)
                 {
-                    _cursor--;
+                    Cursor--;
                 }
 
-                Array.Copy(_cells, _cursor + 1, _cells, _cursor, field._end - _cursor - 1);
-                _cells[field._end - 1] = 0;
-                field._modified = true;
+                Array.Copy(_cells, Cursor + 1, _cells, Cursor, field.End - Cursor - 1);
+                _cells[field.End - 1] = 0;
+                field.Modified = true;
                 break;
 
             default:
                 if (!control && !char.IsControl(key.KeyChar))
                 {
-                    var originalCursor = _cursor;
+                    var originalCursor = Cursor;
                     Type(field, key.KeyChar);
-                    if (!_inputError && field != null && originalCursor == field._end - 1 && (field._format2 & 0x80) != 0)
+                    if (!InputError && field != null && originalCursor == field.End - 1 && (field.Format2 & 0x80) != 0)
                         return Submit(_enterAid);
                 }
 
@@ -783,27 +784,27 @@ internal sealed class Display(Encoding encoding, bool wide)
         return null;
     }
 
-    private InputField? CurrentField() => _fields.Find(f => _cursor >= f._start && _cursor < f._end);
+    private InputField? CurrentField() => _fields.Find(f => Cursor >= f.Start && Cursor < f.End);
 
     private void Type(InputField? field, char character)
     {
-        if (field == null || field._bypass)
+        if (field == null || field.Bypass)
         {
-            _inputError = true;
+            InputError = true;
             return;
         }
 
-        if ((field._format2 & 0x20) != 0)
+        if ((field.Format2 & 0x20) != 0)
         {
             character = char.ToUpperInvariant(character);
         }
 
-        var mode = field._format1 & 7;
+        var mode = field.Format1 & 7;
         if (mode == 6 || mode == 5 && !char.IsAsciiDigit(character) ||
             mode == 1 && !char.IsLetter(character) && character is not ' ' and not ',' and not '.' and not '-' ||
             mode is 3 or 7 && !char.IsAsciiDigit(character) && character is not ' ' and not '+' and not '-' and not '.' and not ',')
         {
-            _inputError = true;
+            InputError = true;
             return;
         }
 
@@ -814,29 +815,29 @@ internal sealed class Display(Encoding encoding, bool wide)
         }
         catch (EncoderFallbackException)
         {
-            _inputError = true;
+            InputError = true;
             return;
         }
 
-        if (bytes.Length != 1 || _insert && _cells[field._end - 1] is not 0 and not _blank)
+        if (bytes.Length != 1 || _insert && _cells[field.End - 1] is not 0 and not _blank)
         {
-            _inputError = true;
+            InputError = true;
             return;
         }
 
         if (_insert)
         {
-            Array.Copy(_cells, _cursor, _cells, _cursor + 1, field._end - _cursor - 1);
+            Array.Copy(_cells, Cursor, _cells, Cursor + 1, field.End - Cursor - 1);
         }
 
-        _cells[_cursor] = bytes[0];
-        field._modified = true;
-        field._exited = false;
-        if (_cursor + 1 < field._end)
+        _cells[Cursor] = bytes[0];
+        field.Modified = true;
+        field.Exited = false;
+        if (Cursor + 1 < field.End)
         {
-            _cursor++;
+            Cursor++;
         }
-        else if ((field._format2 & 0x40) == 0 && FinishField(field, false))
+        else if ((field.Format2 & 0x40) == 0 && FinishField(field, false))
         {
             Tab(false);
         }
@@ -845,43 +846,43 @@ internal sealed class Display(Encoding encoding, bool wide)
     private void Tab(bool reverse)
     {
         var current = CurrentField();
-        var candidates = _fields.Where(f => !f._bypass).ToArray();
+        var candidates = _fields.Where(f => !f.Bypass).ToArray();
         if (candidates.Length == 0)
             return;
 
         var field = reverse
-            ? candidates.LastOrDefault(f => f._start < (current?._start ?? _cursor)) ?? candidates[^1]
-            : candidates.FirstOrDefault(f => f._start > _cursor) ?? candidates[0];
-        _cursor = field._start;
+            ? candidates.LastOrDefault(f => f.Start < (current?.Start ?? Cursor)) ?? candidates[^1]
+            : candidates.FirstOrDefault(f => f.Start > Cursor) ?? candidates[0];
+        Cursor = field.Start;
     }
 
     private bool FinishField(InputField field, bool exit)
     {
-        var adjustment = field._format2 & 7;
-        if (field._modified && adjustment == 7 && _cells.AsSpan(field._start, field._length).Contains((byte)0))
+        var adjustment = field.Format2 & 7;
+        if (field.Modified && adjustment == 7 && _cells.AsSpan(field.Start, field.Length).Contains((byte)0))
         {
-            _inputError = true;
+            InputError = true;
             return false;
         }
 
-        if (field._modified && adjustment is 5 or 6)
+        if (field.Modified && adjustment is 5 or 6)
         {
-            var length = field._length - ((field._format1 & 7) == 7 ? 1 : 0);
-            var end = field._start + length;
-            while (end > field._start && _cells[end - 1] is 0 or _blank)
+            var length = field.Length - ((field.Format1 & 7) == 7 ? 1 : 0);
+            var end = field.Start + length;
+            while (end > field.Start && _cells[end - 1] is 0 or _blank)
             {
                 end--;
             }
 
-            var count = end - field._start;
+            var count = end - field.Start;
             var padding = length - count;
-            Array.Copy(_cells, field._start, _cells, field._start + padding, count);
-            _cells.AsSpan(field._start, padding).Fill(adjustment == 5 ? (byte)0xF0 : (byte)0x40);
+            Array.Copy(_cells, field.Start, _cells, field.Start + padding, count);
+            _cells.AsSpan(field.Start, padding).Fill(adjustment == 5 ? (byte)0xF0 : (byte)0x40);
         }
 
         if (exit)
         {
-            field._exited = true;
+            field.Exited = true;
         }
 
         return true;
@@ -892,19 +893,19 @@ internal sealed class Display(Encoding encoding, bool wide)
         if (_readCommand == 0)
             return null;
 
-        if (aid == _enterAid && _fields.Any(f => !f._bypass &&
-            ((f._format2 & 8) != 0 && !f._modified || (f._format2 & 0x40) != 0 && f._modified && !f._exited)))
+        if (aid == _enterAid && _fields.Any(f => !f.Bypass &&
+            ((f.Format2 & 8) != 0 && !f.Modified || (f.Format2 & 0x40) != 0 && f.Modified && !f.Exited)))
         {
-            _inputError = true;
+            InputError = true;
             return null;
         }
 
-        if (aid == _enterAid && _fields.Any(f => !f._bypass && !FinishField(f, false)))
+        if (aid == _enterAid && _fields.Any(f => !f.Bypass && !FinishField(f, false)))
             return null;
 
         var data = InputData(aid, _readCommand);
         _readCommand = 0;
-        _locked = true;
+        Locked = true;
         Control1(_readControl1);
         Control2(_readControl2);
         return GdsRecord.Create(data);
@@ -912,7 +913,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
     private byte[] InputData(byte aid, byte read)
     {
-        List<byte> data = [(byte)(_cursor / _columns + 1), (byte)(_cursor % _columns + 1), aid];
+        List<byte> data = [(byte)(Cursor / Columns + 1), (byte)(Cursor % Columns + 1), aid];
         var function = aid switch
         {
             >= _firstFunctionAid and <= _lastFunctionAid => aid - _firstFunctionAid + 1,
@@ -927,22 +928,22 @@ internal sealed class Display(Encoding encoding, bool wide)
                 return [.. data];
         }
 
-        if (aid is _clearAid or _helpAid or _printAid or _recordBackspaceAid || !_fields.Any(f => f._modified))
+        if (aid is _clearAid or _helpAid or _printAid or _recordBackspaceAid || !_fields.Any(f => f.Modified))
             return [.. data];
 
         foreach (var field in _fields)
         {
-            if (read != 0x42 && !field._modified)
+            if (read != 0x42 && !field.Modified)
                 continue;
 
             if (read != 0x42)
             {
-                data.AddRange([0x11, (byte)(field._start / _columns + 1), (byte)(field._start % _columns + 1)]);
+                data.AddRange([0x11, (byte)(field.Start / Columns + 1), (byte)(field.Start % Columns + 1)]);
             }
 
-            var value = _cells.AsSpan(field._start, field._length).ToArray();
+            var value = _cells.AsSpan(field.Start, field.Length).ToArray();
             var length = value.Length;
-            if (!field._transparent)
+            if (!field.Transparent)
             {
                 if (read != 0x42)
                 {
@@ -964,14 +965,14 @@ internal sealed class Display(Encoding encoding, bool wide)
                 }
             }
 
-            if (!field._transparent && (field._format1 & 7) == 7 && length > 1)
+            if (!field.Transparent && (field.Format1 & 7) == 7 && length > 1)
             {
-                if (value[field._length - 1] == encoding.GetBytes(_minusSign)[0])
+                if (value[field.Length - 1] == encoding.GetBytes(_minusSign)[0])
                 {
-                    value[field._length - 2] = (byte)(0xD0 | (value[field._length - 2] & 0x0F));
+                    value[field.Length - 2] = (byte)(0xD0 | (value[field.Length - 2] & 0x0F));
                 }
 
-                length = Math.Min(length, field._length - 1);
+                length = Math.Min(length, field.Length - 1);
             }
 
             data.AddRange(value.AsSpan(0, length));
