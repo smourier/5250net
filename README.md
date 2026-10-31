@@ -7,16 +7,22 @@ Native AOT publishing is enabled.
 
 ```powershell
 5250net --help
-5250net -- myibmi.example.com
-5250net -- myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
+5250net --info
+5250net myibmi.example.com
+5250net myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
 ```
 
 The console title is `5250 - HOST` during a connection, and the previous title is restored on exit.
 Unix title restoration uses the terminal's title stack when supported.
 The default port is 23 for Telnet and 992 for direct TLS. Set `--port` to use another port.
+The default device name is the uppercase machine name, limited to 10 characters. Invalid characters become underscores.
+A leading Q is added when needed. Use `--device NAME` to override it, or `--device ""` for server naming.
 The default EBCDIC code page is 37. The default keyboard type is `USB`.
 The keyboard type and code page must match the configuration of the IBM i virtual device.
-Use `--help` to see all options.
+Use `--info` or `-i` to print version and system information without connecting.
+
+Aliases include `-p` for port, `-w` for wide, `-cp` for code page, `-k` for keyboard, `-rec` for recording, and `-rep` for replay.
+Use `-ta` to enable both TLS and trust-all. Other aliases are listed in `--help`.
 
 ## Connections and TLS
 
@@ -34,21 +40,59 @@ Use `--tls-trust-all` to disable certificate and host-name validation while keep
 These options require `--tls` and cannot be combined with each other.
 
 ```powershell
-5250net localhost --tls --tls-certificate C:\Certificates\server.pem
-5250net localhost --tls --tls-trust-all
+5250net myibmi.example.com --tls --tls-certificate server.pem
+5250net myibmi.example.com --tls --tls-trust-all
 ```
 
 Obsolete SSL protocols and Telnet STARTTLS are not implemented.
 Plain Telnet sends the session, including sign-on input, without encryption.
-No passwords are accepted on the command line, stored in settings, or written to trace files.
+No passwords are accepted on the command line or stored in settings. Explicit keyboard recordings include typed passwords.
 Sign on through the host's normal screen. Automatic sign-on and password substitutes are not implemented.
+
+## Record and replay
+
+Record key presses and their timing to a new file. Recordings contain typed values, including passwords. Keep them private.
+
+```powershell
+5250net myibmi.example.com --record session.jsonl
+5250net myibmi.example.com --replay session.jsonl
+5250net myibmi.example.com --replay session.jsonl --users 5 --user-interval 0.5
+5250net myibmi.example.com --replay session.jsonl --replay-speed 2
+5250net myibmi.example.com --replay session.jsonl --replay-speed 0 --replay-timeout 30
+```
+
+Use `--users` or `-u` for the total user count, including the current session.
+Use `--user-interval` or `-ui` for launch spacing in seconds. The default is 0.
+Extra users use separate terminals. Quitting cancels launches that have not started.
+
+Speed 1 preserves delays, 2 doubles playback speed, and 0 removes delays while waiting for host screen updates and input readiness.
+Replay waits for the initial host screen and, after each submitted action, a host update with the keyboard unlocked.
+Screen contents can change between recording and replay. Use the recorded code page, keyboard type, and wide mode.
+A timeout, unexpected input error, missing submission, or premature disconnect stops replay with an error and exit code 1.
+Successful completion disconnects.
+Normal live keys are ignored during replay. The console footer shows the file, current step, and action without revealing typed values.
+
+* Ctrl+Q or Ctrl+C stops the current session.
+* Ctrl+N starts another replay user in a separate terminal using the same recording.
+* While recording, Ctrl+N uses a snapshot of the keys recorded so far. In a normal session, it prompts for a recording path.
+* Ctrl+K selects another 5250net session for this OS account. Use arrows to choose, Enter to stop it, or Escape to cancel.
+* Ctrl+L stops all other sessions for this account. The current session is always excluded.
+
+User controls request graceful disconnection.
+Replay users default to machine-based device names with numeric suffixes, such as `CLIENT_1` and `CLIENT_2`.
+The machine portion is shortened to keep the complete name within 10 characters.
+Numbering is shared across sessions for this OS account and continues across batches.
+An explicit `--device` overrides the current session.
+Windows Terminal sessions open another Terminal tab. Other Windows sessions open a new Command Prompt window.
+Command Prompt is also used if Windows Terminal cannot be launched.
+Linux uses a supported terminal launcher, or the executable named by `TERMINAL`.
 
 ## HTML screen capture
 
 Use `--capture-directory PATH` to save changed screens as standalone HTML pages with Unicode text and terminal colors.
 
 ```powershell
-5250net localhost --capture-directory C:\TerminalCaptures
+5250net myibmi.example.com --capture-directory captures
 ```
 
 Each session gets its own directory containing numbered, timestamped screens and an `index.html` with previews and system information.

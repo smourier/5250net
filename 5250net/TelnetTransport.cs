@@ -1,4 +1,4 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal sealed class TelnetTransport(Stream stream, Options options)
 {

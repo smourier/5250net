@@ -1,5 +1,110 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
   </resheader>
@@ -7,35 +112,11 @@
     <value>2.0</value>
   </resheader>
   <resheader name="reader">
-    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <resheader name="writer">
-    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="Help" xml:space="preserve">
-    <value>5250net, an IBM i console terminal.
-Usage: 5250net HOST [options]
-  --port NUMBER       Default 23, or 992 with TLS.
-  --tls               Use direct TLS with certificate validation.
-  --tls-certificate FILE  Trust a PEM or DER CA or self-signed server certificate.
-  --tls-trust-all     Skip server certificate and hostname validation.
-  --device NAME       Request an IBM i display device (up to 10 characters).
-  --code-page NUMBER  EBCDIC code page, default 37.
-  --keyboard TYPE     IBM keyboard type, default USB.
-  --wide              Advertise a 27 by 132 color display.
-  --capture-directory PATH  Save changed host screens as standalone HTML pages.
-  --help              Show this help.
-  --version           Show the version.
-Keys: Enter, F1 through F12, Shift+F1 through Shift+F12 for F13 through F24.
-Tab and Shift+Tab select fields. Home selects the start of the field.
-Ctrl+Enter sends Field Exit. Keypad plus and minus send Field+ and Field-.
-End selects the end of its content. Insert toggles insert mode.
-Delete and Backspace edit. Ctrl+End erases to the end of the field.
-PageUp and PageDown send Roll keys. Alt+H sends Help.
-Ctrl+A sends Attention. Ctrl+S sends System Request.
-Escape resets an input error. Ctrl+Q disconnects.
-</value>
-  </data>
   <data name="InvalidOption" xml:space="preserve">
     <value>Invalid command line argument: {0}.</value>
   </data>
@@ -101,9 +182,6 @@ Escape resets an input error. Ctrl+Q disconnects.
   </data>
   <data name="Disconnected" xml:space="preserve">
     <value>The host closed the connection.</value>
-  </data>
-  <data name="Version" xml:space="preserve">
-    <value>5250net 0.1.0</value>
   </data>
   <data name="MessageWaiting" xml:space="preserve">
     <value> MSG</value>
@@ -260,5 +338,147 @@ Escape resets an input error. Ctrl+Q disconnects.
   </data>
   <data name="HtmlTimeZone" xml:space="preserve">
     <value>Local time zone</value>
+  </data>
+  <data name="RecordingInvalid" xml:space="preserve">
+    <value>The recording is invalid, incomplete, or unsupported.</value>
+  </data>
+  <data name="RecordingConfiguration" xml:space="preserve">
+    <value>The recording requires the same code page, keyboard type, and wide mode.</value>
+  </data>
+  <data name="RecordingOptions" xml:space="preserve">
+    <value>Use either --record FILE or --replay FILE. The recording path must not be empty.</value>
+  </data>
+  <data name="ReplayTimingOptions" xml:space="preserve">
+    <value>Replay speed must be zero or positive. The screen timeout must be greater than zero and at most 86400 seconds.</value>
+  </data>
+  <data name="ReplayOptions" xml:space="preserve">
+    <value>Replay timing and group options require --replay FILE.</value>
+  </data>
+  <data name="ReplayStatus" xml:space="preserve">
+    <value>REPLAY {0}/{1} {2}, {3}. Ctrl+Q quit, Ctrl+N add, Ctrl+K users.</value>
+  </data>
+  <data name="ReplayFinishing" xml:space="preserve">
+    <value>finishing replay</value>
+  </data>
+  <data name="ReplayTyping" xml:space="preserve">
+    <value>typing</value>
+  </data>
+  <data name="ReplayTimeout" xml:space="preserve">
+    <value>Replay stopped at step {0}. The next host screen did not become ready.</value>
+  </data>
+  <data name="ReplayFailed" xml:space="preserve">
+    <value>Replay stopped at step {0}. The key could not be submitted or produced an unexpected input error.</value>
+  </data>
+  <data name="ReplayDisconnected" xml:space="preserve">
+    <value>Replay stopped because the server disconnected before completion.</value>
+  </data>
+  <data name="RecordingStatus" xml:space="preserve">
+    <value>RECORDING {0}. Ctrl+Q quit, Ctrl+N add, Ctrl+K users.</value>
+  </data>
+  <data name="ReplayUserStatus" xml:space="preserve">
+    <value>User {0}/{1}, PID {2}. Arrows choose, Enter stop, Escape cancel.</value>
+  </data>
+  <data name="ReplayUserAdded" xml:space="preserve">
+    <value>Started another replay user. Ctrl+K selects a user to stop.</value>
+  </data>
+  <data name="ReplayUserStopped" xml:space="preserve">
+    <value>Requested a graceful stop for PID {0}.</value>
+  </data>
+  <data name="ReplayUserError" xml:space="preserve">
+    <value>The replay user operation failed: {0}</value>
+  </data>
+  <data name="ReplayNoUsers" xml:space="preserve">
+    <value>No other active 5250net sessions were found.</value>
+  </data>
+  <data name="ReplayNoTerminal" xml:space="preserve">
+    <value>No supported terminal launcher was found. Set TERMINAL to a terminal executable.</value>
+  </data>
+  <data name="ReplayUsersStopped" xml:space="preserve">
+    <value>Requested a graceful stop for all other users for this account.</value>
+  </data>
+  <data name="CommandDescription" xml:space="preserve">
+    <value>IBM i TN5250 console terminal. Ctrl+Q quits. Ctrl+N adds a replay user. Ctrl+K selects another user to stop.
+Ctrl+L stops all other sessions.</value>
+  </data>
+  <data name="HostDescription" xml:space="preserve">
+    <value>IBM i server hostname or IP address.</value>
+  </data>
+  <data name="PortDescription" xml:space="preserve">
+    <value>Server port, default 23 or 992 with TLS.</value>
+  </data>
+  <data name="TlsDescription" xml:space="preserve">
+    <value>Use direct TLS with certificate validation.</value>
+  </data>
+  <data name="TlsCertificateDescription" xml:space="preserve">
+    <value>Trust a PEM or DER CA or self-signed server certificate.</value>
+  </data>
+  <data name="TlsTrustAllDescription" xml:space="preserve">
+    <value>Disable server certificate and hostname validation.</value>
+  </data>
+  <data name="WideDescription" xml:space="preserve">
+    <value>Use a 27 by 132 color display.</value>
+  </data>
+  <data name="DeviceDescription" xml:space="preserve">
+    <value>Requested device name. Defaults to the machine name, with a numeric suffix during replay. Empty uses server naming.</value>
+  </data>
+  <data name="CodePageDescription" xml:space="preserve">
+    <value>EBCDIC code page.</value>
+  </data>
+  <data name="KeyboardDescription" xml:space="preserve">
+    <value>IBM keyboard type.</value>
+  </data>
+  <data name="CaptureDescription" xml:space="preserve">
+    <value>Save changed screens as HTML pages.</value>
+  </data>
+  <data name="RecordDescription" xml:space="preserve">
+    <value>Record key presses and timing to a new file. Includes typed passwords.</value>
+  </data>
+  <data name="ReplayDescription" xml:space="preserve">
+    <value>Replay a completed recording in a new connection.</value>
+  </data>
+  <data name="ReplaySpeedDescription" xml:space="preserve">
+    <value>Playback speed multiplier. Zero removes delays but still waits for host screen updates.</value>
+  </data>
+  <data name="ReplayTimeoutDescription" xml:space="preserve">
+    <value>Maximum time to wait for the next host screen and input readiness, in seconds.</value>
+  </data>
+  <data name="ReplaySourcePrompt" xml:space="preserve">
+    <value>Replay file: {0}. Enter starts, Escape cancels.</value>
+  </data>
+  <data name="ActivityStatus" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="RecordingLimit" xml:space="preserve">
+    <value>The recording reached its supported size or key limit.</value>
+  </data>
+  <data name="Banner" xml:space="preserve">
+    <value>5250net - V{0} - Copyright (C) Simon Mourier 2025-{1}. All rights reserved.</value>
+  </data>
+  <data name="TlsTrustAllShortcutDescription" xml:space="preserve">
+    <value>Enable TLS and disable server certificate and hostname validation.</value>
+  </data>
+  <data name="ReplayCommandPromptArguments" xml:space="preserve">
+    <value>Cannot safely pass these replay arguments to Command Prompt.</value>
+  </data>
+  <data name="InfoDescription" xml:space="preserve">
+    <value>Show application version and system information without connecting.</value>
+  </data>
+  <data name="InfoItem" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="ReplayUsersDescription" xml:space="preserve">
+    <value>Total replay users, including this session. Each additional user opens a separate terminal.</value>
+  </data>
+  <data name="UserIntervalDescription" xml:space="preserve">
+    <value>Seconds between replay user launches. Default 0 starts users without an intentional delay.</value>
+  </data>
+  <data name="ReplayUsersOptions" xml:space="preserve">
+    <value>Replay user count must be positive, and the launch interval must be between 0 and 86400 seconds.</value>
+  </data>
+  <data name="ReplayUsersWaiting" xml:space="preserve">
+    <value>Replay completed. Launching remaining users. Ctrl+Q stops pending launches.</value>
+  </data>
+  <data name="ReplayDeviceCounter" xml:space="preserve">
+    <value>Cannot allocate a unique replay device name. The saved device counter is invalid or exhausted.</value>
   </data>
 </root>

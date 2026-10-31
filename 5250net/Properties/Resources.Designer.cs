@@ -61,6 +61,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0} {1}.
+        /// </summary>
+        internal static string ActivityStatus {
+            get {
+                return ResourceManager.GetString("ActivityStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The host sent an invalid screen address..
         /// </summary>
         internal static string BadAddress {
@@ -97,6 +106,43 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to 5250net - V{0} - Copyright (C) Simon Mourier 2025-{1}. All rights reserved..
+        /// </summary>
+        internal static string Banner {
+            get {
+                return ResourceManager.GetString("Banner", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Save changed screens as HTML pages..
+        /// </summary>
+        internal static string CaptureDescription {
+            get {
+                return ResourceManager.GetString("CaptureDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to EBCDIC code page..
+        /// </summary>
+        internal static string CodePageDescription {
+            get {
+                return ResourceManager.GetString("CodePageDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to IBM i TN5250 console terminal. Ctrl+Q quits. Ctrl+N adds a replay user. Ctrl+K selects another user to stop.
+        ///Ctrl+L stops all other sessions..
+        /// </summary>
+        internal static string CommandDescription {
+            get {
+                return ResourceManager.GetString("CommandDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The connection or TLS handshake timed out..
         /// </summary>
         internal static string ConnectTimeout {
@@ -111,6 +157,15 @@ namespace Terminal5250.Properties {
         internal static string ConsoleTitle {
             get {
                 return ResourceManager.GetString("ConsoleTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Requested device name. Defaults to the machine name, with a numeric suffix during replay. Empty uses server naming..
+        /// </summary>
+        internal static string DeviceDescription {
+            get {
+                return ResourceManager.GetString("DeviceDescription", resourceCulture);
             }
         }
         
@@ -133,19 +188,11 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 5250net, an IBM i console terminal.
-        ///Usage: 5250net HOST [options]
-        ///  --port NUMBER       Default 23, or 992 with TLS.
-        ///  --tls               Use direct TLS with certificate validation.
-        ///  --tls-certificate FILE  Trust a PEM or DER CA or self-signed server certificate.
-        ///  --tls-trust-all     Skip server certificate and hostname validation.
-        ///  --device NAME       Request an IBM i display device (up to 10 characters).
-        ///  --code-page NUMBER  EBCDIC code page, default 37.
-        ///  --keyboard TYPE     IBM keyboard typ [rest of string was truncated]&quot;;.
+        ///   Looks up a localized string similar to IBM i server hostname or IP address..
         /// </summary>
-        internal static string Help {
+        internal static string HostDescription {
             get {
-                return ResourceManager.GetString("Help", resourceCulture);
+                return ResourceManager.GetString("HostDescription", resourceCulture);
             }
         }
         
@@ -573,6 +620,24 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Show application version and system information without connecting..
+        /// </summary>
+        internal static string InfoDescription {
+            get {
+                return ResourceManager.GetString("InfoDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0}: {1}.
+        /// </summary>
+        internal static string InfoItem {
+            get {
+                return ResourceManager.GetString("InfoItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to INPUT ERROR, Escape resets.
         /// </summary>
         internal static string InputError {
@@ -609,6 +674,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to IBM keyboard type..
+        /// </summary>
+        internal static string KeyboardDescription {
+            get {
+                return ResourceManager.GetString("KeyboardDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to WAIT.
         /// </summary>
         internal static string Locked {
@@ -636,11 +710,74 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Server port, default 23 or 992 with TLS..
+        /// </summary>
+        internal static string PortDescription {
+            get {
+                return ResourceManager.GetString("PortDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to READY.
         /// </summary>
         internal static string Ready {
             get {
                 return ResourceManager.GetString("Ready", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Record key presses and timing to a new file. Includes typed passwords..
+        /// </summary>
+        internal static string RecordDescription {
+            get {
+                return ResourceManager.GetString("RecordDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The recording requires the same code page, keyboard type, and wide mode..
+        /// </summary>
+        internal static string RecordingConfiguration {
+            get {
+                return ResourceManager.GetString("RecordingConfiguration", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The recording is invalid, incomplete, or unsupported..
+        /// </summary>
+        internal static string RecordingInvalid {
+            get {
+                return ResourceManager.GetString("RecordingInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The recording reached its supported size or key limit..
+        /// </summary>
+        internal static string RecordingLimit {
+            get {
+                return ResourceManager.GetString("RecordingLimit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use either --record FILE or --replay FILE. The recording path must not be empty..
+        /// </summary>
+        internal static string RecordingOptions {
+            get {
+                return ResourceManager.GetString("RecordingOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to RECORDING {0}. Ctrl+Q quit, Ctrl+N add, Ctrl+K users..
+        /// </summary>
+        internal static string RecordingStatus {
+            get {
+                return ResourceManager.GetString("RecordingStatus", resourceCulture);
             }
         }
         
@@ -663,6 +800,222 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Cannot safely pass these replay arguments to Command Prompt..
+        /// </summary>
+        internal static string ReplayCommandPromptArguments {
+            get {
+                return ResourceManager.GetString("ReplayCommandPromptArguments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay a completed recording in a new connection..
+        /// </summary>
+        internal static string ReplayDescription {
+            get {
+                return ResourceManager.GetString("ReplayDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot allocate a unique replay device name. The saved device counter is invalid or exhausted..
+        /// </summary>
+        internal static string ReplayDeviceCounter {
+            get {
+                return ResourceManager.GetString("ReplayDeviceCounter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay stopped because the server disconnected before completion..
+        /// </summary>
+        internal static string ReplayDisconnected {
+            get {
+                return ResourceManager.GetString("ReplayDisconnected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay stopped at step {0}. The key could not be submitted or produced an unexpected input error..
+        /// </summary>
+        internal static string ReplayFailed {
+            get {
+                return ResourceManager.GetString("ReplayFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to finishing replay.
+        /// </summary>
+        internal static string ReplayFinishing {
+            get {
+                return ResourceManager.GetString("ReplayFinishing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No supported terminal launcher was found. Set TERMINAL to a terminal executable..
+        /// </summary>
+        internal static string ReplayNoTerminal {
+            get {
+                return ResourceManager.GetString("ReplayNoTerminal", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No other active 5250net sessions were found..
+        /// </summary>
+        internal static string ReplayNoUsers {
+            get {
+                return ResourceManager.GetString("ReplayNoUsers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay timing and group options require --replay FILE..
+        /// </summary>
+        internal static string ReplayOptions {
+            get {
+                return ResourceManager.GetString("ReplayOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay file: {0}. Enter starts, Escape cancels..
+        /// </summary>
+        internal static string ReplaySourcePrompt {
+            get {
+                return ResourceManager.GetString("ReplaySourcePrompt", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Playback speed multiplier. Zero removes delays but still waits for host screen updates..
+        /// </summary>
+        internal static string ReplaySpeedDescription {
+            get {
+                return ResourceManager.GetString("ReplaySpeedDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to REPLAY {0}/{1} {2}, {3}. Ctrl+Q quit, Ctrl+N add, Ctrl+K users..
+        /// </summary>
+        internal static string ReplayStatus {
+            get {
+                return ResourceManager.GetString("ReplayStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay stopped at step {0}. The next host screen did not become ready..
+        /// </summary>
+        internal static string ReplayTimeout {
+            get {
+                return ResourceManager.GetString("ReplayTimeout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Maximum time to wait for the next host screen and input readiness, in seconds..
+        /// </summary>
+        internal static string ReplayTimeoutDescription {
+            get {
+                return ResourceManager.GetString("ReplayTimeoutDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay speed must be zero or positive. The screen timeout must be greater than zero and at most 86400 seconds..
+        /// </summary>
+        internal static string ReplayTimingOptions {
+            get {
+                return ResourceManager.GetString("ReplayTimingOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to typing.
+        /// </summary>
+        internal static string ReplayTyping {
+            get {
+                return ResourceManager.GetString("ReplayTyping", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Started another replay user. Ctrl+K selects a user to stop..
+        /// </summary>
+        internal static string ReplayUserAdded {
+            get {
+                return ResourceManager.GetString("ReplayUserAdded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The replay user operation failed: {0}.
+        /// </summary>
+        internal static string ReplayUserError {
+            get {
+                return ResourceManager.GetString("ReplayUserError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Total replay users, including this session. Each additional user opens a separate terminal..
+        /// </summary>
+        internal static string ReplayUsersDescription {
+            get {
+                return ResourceManager.GetString("ReplayUsersDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay user count must be positive, and the launch interval must be between 0 and 86400 seconds..
+        /// </summary>
+        internal static string ReplayUsersOptions {
+            get {
+                return ResourceManager.GetString("ReplayUsersOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Requested a graceful stop for all other users for this account..
+        /// </summary>
+        internal static string ReplayUsersStopped {
+            get {
+                return ResourceManager.GetString("ReplayUsersStopped", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User {0}/{1}, PID {2}. Arrows choose, Enter stop, Escape cancel..
+        /// </summary>
+        internal static string ReplayUserStatus {
+            get {
+                return ResourceManager.GetString("ReplayUserStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Requested a graceful stop for PID {0}..
+        /// </summary>
+        internal static string ReplayUserStopped {
+            get {
+                return ResourceManager.GetString("ReplayUserStopped", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay completed. Launching remaining users. Ctrl+Q stops pending launches..
+        /// </summary>
+        internal static string ReplayUsersWaiting {
+            get {
+                return ResourceManager.GetString("ReplayUsersWaiting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to IBM i session startup failed with response code {0}..
         /// </summary>
         internal static string StartupFailed {
@@ -681,6 +1034,24 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Trust a PEM or DER CA or self-signed server certificate..
+        /// </summary>
+        internal static string TlsCertificateDescription {
+            get {
+                return ResourceManager.GetString("TlsCertificateDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use direct TLS with certificate validation..
+        /// </summary>
+        internal static string TlsDescription {
+            get {
+                return ResourceManager.GetString("TlsDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Use either --tls-certificate or --tls-trust-all, not both..
         /// </summary>
         internal static string TlsOptionsExclusive {
@@ -695,6 +1066,24 @@ namespace Terminal5250.Properties {
         internal static string TlsOptionsRequireTls {
             get {
                 return ResourceManager.GetString("TlsOptionsRequireTls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Disable server certificate and hostname validation..
+        /// </summary>
+        internal static string TlsTrustAllDescription {
+            get {
+                return ResourceManager.GetString("TlsTrustAllDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Enable TLS and disable server certificate and hostname validation..
+        /// </summary>
+        internal static string TlsTrustAllShortcutDescription {
+            get {
+                return ResourceManager.GetString("TlsTrustAllShortcutDescription", resourceCulture);
             }
         }
         
@@ -744,11 +1133,20 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 5250net 0.1.0.
+        ///   Looks up a localized string similar to Seconds between replay user launches. Default 0 starts users without an intentional delay..
         /// </summary>
-        internal static string Version {
+        internal static string UserIntervalDescription {
             get {
-                return ResourceManager.GetString("Version", resourceCulture);
+                return ResourceManager.GetString("UserIntervalDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use a 27 by 132 color display..
+        /// </summary>
+        internal static string WideDescription {
+            get {
+                return ResourceManager.GetString("WideDescription", resourceCulture);
             }
         }
     }

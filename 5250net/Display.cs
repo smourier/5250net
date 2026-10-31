@@ -1,4 +1,4 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal sealed class Display(Encoding encoding, bool wide)
 {
@@ -49,9 +49,10 @@ internal sealed class Display(Encoding encoding, bool wide)
     private byte[]? _errorLine;
     private int _errorLineStart;
 
-    internal long _screenRevision { get; private set; }
+    internal bool ReadPending => _readCommand != 0;
+    internal long ScreenRevision { get; private set; }
     internal bool MessageWaiting => _message;
-    internal bool FnsertMode => _insert;
+    internal bool InsertMode => _insert;
 
     internal int Rows { get; private set; } = _narrowRows;
     internal int Columns { get; private set; } = _narrowColumns;
@@ -151,6 +152,7 @@ internal sealed class Display(Encoding encoding, bool wide)
                     _readCommand = command;
                     _readControl1 = Take(data, ref i);
                     _readControl2 = Take(data, ref i);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.Save:
@@ -187,7 +189,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
         if (screenUpdated)
         {
-            _screenRevision++;
+            ScreenRevision++;
         }
 
         return replies;

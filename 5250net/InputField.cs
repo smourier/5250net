@@ -1,4 +1,4 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal sealed class InputField(int start, int length, byte format1, byte format2, bool transparent)
 {

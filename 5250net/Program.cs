@@ -8,6 +8,7 @@ internal static class Program
     private static readonly byte[] _ebcdicSignature = [0x40, 0xC1, 0xF0];
 
     private const int _inputPollMilliseconds = 20;
+    private const int _maximumReplayKeysPerPoll = 32;
     private const int _drainBufferLength = 4096;
     private static readonly TimeSpan _disconnectTimeout = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan _connectionTimeout = TimeSpan.FromSeconds(30);
@@ -25,17 +26,8 @@ internal static class Program
         try
         {
             var options = Options.Parse(args);
-            if (options.Help)
-            {
-                Console.Write(Resources.Help);
-                return 0;
-            }
-
-            if (options.Version)
-            {
-                Console.WriteLine(Resources.Version);
-                return 0;
-            }
+            if (options.Invocation != null)
+                return options.Invocation.Invoke();
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
             var encoding = Encoding.GetEncoding(options.CodePage, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
@@ -47,6 +39,12 @@ internal static class Program
 
             if (Console.IsInputRedirected || Console.IsOutputRedirected)
                 throw new InvalidOperationException(Resources.Redirected);
+
+            Console.WriteLine(ConsoleRenderer.BuildBanner(DateTime.Now.Year));
+            Console.WriteLine();
+            using var recorder = options.RecordFile == null ? null : new SessionRecorder(options.RecordFile, options);
+            var replay = options.ReplayFile == null ? null : new SessionReplay(options.ReplayFile, options);
+            await using var users = new SessionUsers(options, args, cancellation);
 
             using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
             connectionCancellation.CancelAfter(_connectionTimeout);
@@ -78,10 +76,46 @@ internal static class Program
             var display = new Display(encoding, options.Wide);
             using var renderer = new ConsoleRenderer(options.Host);
             await using var input = new ConsoleInput();
-            var capture = options._captureDirectory == null ? null
-                : new HtmlScreenCapture(options._captureDirectory, options, args,
+            var capture = options.CaptureDirectory == null ? null
+                : new HtmlScreenCapture(options.CaptureDirectory, options, args,
                     client.Client.RemoteEndPoint?.ToString(), stream as SslStream);
-            await RunAsync(client, stream, transport, display, renderer, capture, cancellation);
+            var launches = users.LaunchUsersAsync(cancellation.Token);
+            try
+            {
+                await RunAsync(client, stream, transport, display, renderer, capture, recorder, replay, users, launches, cancellation);
+                while (!launches.IsCompleted)
+                {
+                    renderer.Draw(display, Resources.ReplayUsersWaiting);
+                    while (Console.KeyAvailable)
+                    {
+                        var key = Console.ReadKey(true);
+                        if (ConsoleInput.IsQuit(key))
+                        {
+                            cancellation.Cancel();
+                        }
+                        else
+                        {
+                            await users.HandleAsync(key, display, null, replay, 0);
+                        }
+                    }
+
+                    await Task.Delay(_inputPollMilliseconds, cancellation.Token);
+                }
+
+                await launches;
+            }
+            finally
+            {
+                cancellation.Cancel();
+                try
+                {
+                    await launches;
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                }
+            }
+
             return 0;
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
@@ -90,7 +124,7 @@ internal static class Program
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SocketException or
             AuthenticationException or CryptographicException or ArgumentException or InvalidOperationException or
-            TimeoutException or NotSupportedException)
+            TimeoutException or NotSupportedException or Win32Exception)
         {
             Console.Error.WriteLine(string.Format(CultureInfo.CurrentCulture, Resources.Error, exception.Message));
             return 1;
@@ -185,9 +219,9 @@ internal static class Program
 
     internal static async Task AuthenticateAsync(SslStream stream, Options options, CancellationToken cancellation)
     {
-        using var certificate = options._tlsCertificate == null
+        using var certificate = options.TlsCertificate == null
             ? null
-            : X509CertificateLoader.LoadCertificateFromFile(options._tlsCertificate.FullName);
+            : X509CertificateLoader.LoadCertificateFromFile(options.TlsCertificate.FullName);
         var authentication = new SslClientAuthenticationOptions
         {
             TargetHost = options.Host,
@@ -195,7 +229,7 @@ internal static class Program
             CertificateRevocationCheckMode = X509RevocationMode.Online,
         };
 
-        if (options._tlsTrustAll)
+        if (options.TlsTrustAll)
         {
             authentication.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
         }
@@ -269,19 +303,34 @@ internal static class Program
     }
 
     private static async Task RunAsync(TcpClient client, Stream stream, TelnetTransport transport, Display display, ConsoleRenderer renderer,
-        HtmlScreenCapture? capture, CancellationTokenSource cancellation)
+        HtmlScreenCapture? capture, SessionRecorder? recorder, SessionReplay? replay, SessionUsers? users,
+        Task launches, CancellationTokenSource cancellation)
     {
         var pending = transport.ReadAsync(CancellationToken.None);
+        var clock = Stopwatch.StartNew();
         var dirty = true;
+        var completed = false;
+        string? previousActivity = null;
         try
         {
             while (!cancellation.IsCancellationRequested)
             {
+                if (launches.IsFaulted)
+                {
+                    await launches;
+                }
+
                 if (pending.IsCompleted)
                 {
                     var record = await pending;
                     if (record == null)
+                    {
+                        if (replay != null && !replay.IsComplete && !replay.FinishOnDisconnect())
+                            throw new InvalidDataException(Resources.ReplayDisconnected);
+
+                        completed = true;
                         return;
+                    }
 
                     foreach (var reply in display.Apply(record))
                     {
@@ -293,19 +342,26 @@ internal static class Program
                     dirty = true;
                 }
 
-                if (Console.KeyAvailable)
+                while (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(true);
                     if (ConsoleInput.IsQuit(key))
                     {
+                        recorder?.Record(key, null, display.InputError, clock.ElapsedMilliseconds);
                         capture?.RecordAction(key, display);
+                        cancellation.Cancel();
+                        completed = true;
                         return;
                     }
 
-                    if (ConsoleRenderer.Fits(display))
+                    replay?.SetPaused(true, clock.ElapsedMilliseconds);
+                    var handled = users != null && await users.HandleAsync(key, display, recorder, replay, clock.ElapsedMilliseconds);
+                    replay?.SetPaused(users?.IsSelecting == true, clock.ElapsedMilliseconds);
+                    if (!handled && replay == null && ConsoleRenderer.Fits(display))
                     {
                         var action = capture == null ? null : HtmlScreenCapture.DescribeAction(key, display);
                         var record = display.Key(key);
+                        recorder?.Record(key, record, display.InputError, clock.ElapsedMilliseconds);
                         if (record != null)
                         {
                             capture?.RecordAction(action!);
@@ -315,28 +371,76 @@ internal static class Program
                     }
 
                     dirty = true;
+                    if (replay == null || handled)
+                        break;
                 }
 
-                if (dirty || renderer.Resized())
+                replay?.SetPaused(users?.IsSelecting == true || !ConsoleRenderer.Fits(display), clock.ElapsedMilliseconds);
+                for (var replayed = 0; replay != null && replayed < _maximumReplayKeysPerPoll; replayed++)
                 {
-                    renderer.Draw(display);
+                    var next = replay.Next(display, clock.ElapsedMilliseconds);
+                    if (next == null)
+                        break;
+
+                    if (next.Key == null || ConsoleInput.IsQuit(next.Key.Value))
+                    {
+                        replay.Advance(next, null, display, clock.ElapsedMilliseconds);
+                        completed = true;
+                        return;
+                    }
+
+                    var key = next.Key.Value;
+                    var action = capture == null ? null : HtmlScreenCapture.DescribeAction(key, display);
+                    var record = display.Key(key);
+                    replay.Advance(next, record, display, clock.ElapsedMilliseconds);
+                    if (record != null)
+                    {
+                        capture?.RecordAction(action!);
+                        capture?.Save(display, true);
+                        await transport.WriteRecordAsync(record, cancellation.Token);
+                    }
+
+                    dirty = true;
+                }
+
+                var activity = users?.Status ?? replay?.Status;
+                if (activity == null && recorder != null)
+                {
+                    activity = string.Format(CultureInfo.CurrentCulture, Resources.RecordingStatus, Path.GetFileName(recorder.FilePath));
+                }
+
+                if (dirty || renderer.Resized() || activity != previousActivity)
+                {
+                    renderer.Draw(display, activity);
+                    previousActivity = activity;
                     dirty = false;
                 }
 
                 await Task.Delay(_inputPollMilliseconds, cancellation.Token);
             }
+
+            completed = true;
         }
         finally
         {
             try
             {
+                if (completed || cancellation.IsCancellationRequested)
+                {
+                    recorder?.Complete(display, clock.ElapsedMilliseconds);
+                }
+
                 capture?.Save(display, true);
             }
             finally
             {
+                if (!completed)
+                {
+                    cancellation.Cancel();
+                }
+
                 // the peer may still be sending a screen, so drain it before releasing the connection.
                 await DisconnectAsync(client, stream, pending);
-                cancellation.Cancel();
                 try
                 {
                     await pending;

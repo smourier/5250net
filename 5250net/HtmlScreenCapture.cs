@@ -30,7 +30,7 @@ internal sealed class HtmlScreenCapture
     private const string _colorProperty = "{color:";
     private const string _backgroundProperty = ";background-color:";
     private const string _underlineProperty = ";text-decoration:underline";
-    private const string _styleClose = "}";
+    private const char _styleCloseChar = '}';
     private const string _styleClassPrefix = ".a";
     private const string _styleEnd = "</style></head><body>";
     private const string _indexStyleEnd = "</style></head><body class=\"capture-gallery\">";
@@ -143,8 +143,8 @@ internal sealed class HtmlScreenCapture
         AppendFact(details, Resources.HtmlRemoteEndpoint, remoteEndpoint ?? Resources.HtmlUnknown);
         AppendFact(details, Resources.HtmlTls, options.Tls ? Resources.HtmlOn : Resources.HtmlOff);
         var validation = !options.Tls ? Resources.HtmlNotApplicable
-            : options._tlsTrustAll ? Resources.HtmlTrustAll
-            : options._tlsCertificate?.FullName ?? Resources.HtmlSystemTrust;
+            : options.TlsTrustAll ? Resources.HtmlTrustAll
+            : options.TlsCertificate?.FullName ?? Resources.HtmlSystemTrust;
         AppendFact(details, Resources.HtmlValidation, validation);
         if (options.Tls)
         {
@@ -230,13 +230,13 @@ internal sealed class HtmlScreenCapture
 
     internal string? Save(Display display, bool beforeLeaving = false)
     {
-        if (display._screenRevision == 0 || !beforeLeaving && display._screenRevision == _lastRevision)
+        if (display.ScreenRevision == 0 || !beforeLeaving && display.ScreenRevision == _lastRevision)
             return null;
 
         var screen = BuildScreen(display);
         if (string.Equals(screen, _lastScreen, StringComparison.Ordinal))
         {
-            _lastRevision = display._screenRevision;
+            _lastRevision = display.ScreenRevision;
             return null;
         }
 
@@ -261,7 +261,7 @@ internal sealed class HtmlScreenCapture
         _lastPath = path;
         _lastDocument = document;
         _lastScreen = screen;
-        _lastRevision = display._screenRevision;
+        _lastRevision = display.ScreenRevision;
         _screenNumber = number;
         return path;
     }
@@ -288,7 +288,7 @@ internal sealed class HtmlScreenCapture
                 builder.Append(_underlineProperty);
             }
 
-            builder.Append(_styleClose);
+            builder.Append(_styleCloseChar);
             builder.Append(_lineEnding);
         }
 
@@ -337,16 +337,11 @@ internal sealed class HtmlScreenCapture
         AppendFact(builder, Resources.HtmlSession, Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         AppendFact(builder, Resources.HtmlSessionStarted, _sessionStarted.ToString(_timestampFormat, CultureInfo.InvariantCulture));
         AppendFact(builder, Resources.HtmlScreenCount, _frames.Count.ToString(CultureInfo.InvariantCulture));
-        var assembly = typeof(HtmlScreenCapture).Assembly;
-        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? assembly.GetName().Version?.ToString() ?? Resources.HtmlUnknown;
-        AppendFact(builder, Resources.HtmlApplicationVersion, version);
-        AppendFact(builder, Resources.HtmlOperatingSystem, RuntimeInformation.OSDescription);
-        AppendFact(builder, Resources.HtmlOperatingSystemVersion, Environment.OSVersion.VersionString);
-        AppendFact(builder, Resources.HtmlOperatingSystemArchitecture, RuntimeInformation.OSArchitecture.ToString());
-        AppendFact(builder, Resources.HtmlProcessArchitecture, RuntimeInformation.ProcessArchitecture.ToString());
-        AppendFact(builder, Resources.HtmlRuntime, RuntimeInformation.FrameworkDescription);
-        AppendFact(builder, Resources.HtmlTimeZone, TimeZoneInfo.Local.Id);
+        foreach (var item in SystemInformation.GetValues())
+        {
+            AppendFact(builder, item.Key, item.Value);
+        }
+
         builder.Append(_connectionDetails);
         builder.Append(_detailsClose);
         AppendArguments(builder);

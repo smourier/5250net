@@ -1,7 +1,8 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal sealed class ConsoleRenderer : IDisposable
 {
+    private const char _buildMetadataSeparator = '+';
     private const byte _normalAttribute = 0x20;
     private const byte _attributeMask = 0xE0;
     private const byte _nonDisplayMask = 7;
@@ -57,7 +58,21 @@ internal sealed class ConsoleRenderer : IDisposable
 
     internal static bool Fits(Display display) => Console.WindowWidth >= display.Columns && Console.WindowHeight > display.Rows;
 
-    internal void Draw(Display display)
+    internal static string BuildBanner(int year)
+    {
+        var assembly = typeof(ConsoleRenderer).Assembly;
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString(3) ?? Resources.HtmlUnknown;
+        var metadata = version.IndexOf(_buildMetadataSeparator);
+        if (metadata >= 0)
+        {
+            version = version[..metadata];
+        }
+
+        return string.Format(CultureInfo.InvariantCulture, Resources.Banner, version, year);
+    }
+
+    internal void Draw(Display display, string? activity = null)
     {
         var resized = Resized();
         _width = Console.WindowWidth;
@@ -117,13 +132,14 @@ internal sealed class ConsoleRenderer : IDisposable
             state += Resources.MessageWaiting;
         }
 
-        if (display.FnsertMode)
+        if (display.InsertMode)
         {
             state += Resources.InsertMode;
         }
 
         var status = string.Format(CultureInfo.CurrentCulture, Resources.Status,
             _host, display.Rows, display.Columns, display.Cursor / display.Columns + 1, display.Cursor % display.Columns + 1, state);
+        status = activity == null ? status : string.Format(CultureInfo.CurrentCulture, Resources.ActivityStatus, state, activity);
         var length = Math.Max(0, _width - 1);
         Console.Write(status.Length > length ? status[..length] : status.PadRight(length));
         Console.SetCursorPosition(display.Cursor % display.Columns, display.Cursor / display.Columns);

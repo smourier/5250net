@@ -1,7 +1,26 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal sealed class Options
 {
+    internal const string _usersOption = "--users";
+    internal const string _usersAlias = "-u";
+    internal const string _userIntervalOption = "--user-interval";
+    internal const string _userIntervalAlias = "-ui";
+    internal const string _recordAlias = "-rec";
+    internal const string _replayAlias = "-rep";
+    internal const string _deviceAlias = "-d";
+    private const string _infoOption = "--info";
+    private const string _infoAlias = "-i";
+    private const string _tlsAlias = "-t";
+    private const string _tlsTrustAllAlias = "-ta";
+    private const string _certificateAlias = "-cert";
+    private const string _wideAlias = "-w";
+    private const string _portAlias = "-p";
+    private const string _codePageAlias = "-cp";
+    private const string _keyboardAlias = "-k";
+    private const string _captureAlias = "-cap";
+    private const string _replaySpeedAlias = "-rs";
+    private const string _replayTimeoutAlias = "-rt";
     internal const string _tlsOption = "--tls";
     internal const string _tlsCertificateOption = "--tls-certificate";
     internal const string _tlsTrustAllOption = "--tls-trust-all";
@@ -11,27 +30,42 @@ internal sealed class Options
     internal const string _deviceOption = "--device";
     internal const string _keyboardOption = "--keyboard";
     internal const string _captureDirectoryOption = "--capture-directory";
+    internal const string _recordOption = "--record";
+    internal const string _replayOption = "--replay";
+    internal const string _replaySpeedOption = "--replay-speed";
+    internal const string _replayTimeoutOption = "--replay-timeout";
+    internal const string _replayGroupOption = "--replay-group";
+    private const double _defaultReplayTimeout = 30;
+    private const double _maximumReplayTimeout = 86400;
     internal const string _helpOption = "--help";
     internal const string _versionOption = "--version";
     internal const string _defaultKeyboard = "USB";
     private const string _hostArgument = "HOST";
-    private const string _shortHelpOption = "-h";
-    private const string _questionHelpOption = "-?";
     private const int _defaultCodePage = 37;
     private const int _maximumNameLength = 10;
+    private const string _devicePrefix = "Q";
     private const int _telnetPort = 23;
     private const int _tlsPort = 992;
 
-    internal FileInfo? _tlsCertificate { get; private set; }
-    internal bool _tlsTrustAll { get; private set; }
-    internal string? _captureDirectory { get; private set; }
+    internal ParseResult? Invocation { get; private set; }
+    internal string? RecordFile { get; private set; }
+    internal string? ReplayFile { get; private set; }
+    internal int ReplayUsers { get; private set; } = 1;
+    internal double UserInterval { get; private set; }
+    internal double ReplaySpeed { get; private set; } = 1;
+    internal double ReplayTimeout { get; private set; } = _defaultReplayTimeout;
+    internal string? ReplayGroup { get; private set; }
+    internal FileInfo? TlsCertificate { get; private set; }
+    internal bool TlsTrustAll { get; private set; }
+    internal string? CaptureDirectory { get; private set; }
     internal string Host { get; private set; } = string.Empty;
     internal int Port { get; private set; }
     internal bool Tls { get; private set; }
     internal bool Wide { get; private set; }
     internal bool Help { get; private set; }
     internal bool Version { get; private set; }
-    internal string Device { get; private set; } = string.Empty;
+    internal bool DeviceSpecified { get; private set; }
+    internal string Device { get; set; } = string.Empty;
     internal int CodePage { get; private set; } = _defaultCodePage;
     internal string Keyboard { get; private set; } = _defaultKeyboard;
 
@@ -39,80 +73,171 @@ internal sealed class Options
     {
         var host = new Argument<string?>(_hostArgument)
         {
-            Arity = ArgumentArity.ZeroOrOne,
+            Arity = ArgumentArity.ExactlyOne,
         };
 
-        var port = new Option<int?>(_portOption);
-        var tls = new Option<bool>(_tlsOption);
-        var tlsCertificate = new Option<FileInfo>(_tlsCertificateOption);
+        var info = new Option<bool>(_infoOption, _infoAlias)
+        {
+            Description = Resources.InfoDescription,
+            Action = new SystemInfoAction(),
+        };
+
+        var port = new Option<int?>(_portOption, _portAlias);
+        var tls = new Option<bool>(_tlsOption, _tlsAlias);
+        var tlsCertificate = new Option<FileInfo>(_tlsCertificateOption, _certificateAlias);
         tlsCertificate.AcceptExistingOnly();
         var tlsTrustAll = new Option<bool>(_tlsTrustAllOption);
-        var wide = new Option<bool>(_wideOption);
-        var help = new Option<bool>(_helpOption, _shortHelpOption, _questionHelpOption);
-        var version = new Option<bool>(_versionOption);
-        var device = new Option<string>(_deviceOption)
+        var tlsTrustAllShortcut = new Option<bool>(_tlsTrustAllAlias);
+        var wide = new Option<bool>(_wideOption, _wideAlias);
+        var device = new Option<string>(_deviceOption, _deviceAlias)
         {
-            DefaultValueFactory = _ => string.Empty,
+            DefaultValueFactory = _ => DefaultDevice(Environment.MachineName),
         };
 
-        var codePage = new Option<int>(_codePageOption)
+        var codePage = new Option<int>(_codePageOption, _codePageAlias)
         {
             DefaultValueFactory = _ => _defaultCodePage,
         };
 
-        var keyboard = new Option<string>(_keyboardOption)
+        var keyboard = new Option<string>(_keyboardOption, _keyboardAlias)
         {
             DefaultValueFactory = _ => _defaultKeyboard,
         };
 
-        var captureDirectory = new Option<string?>(_captureDirectoryOption);
-        var command = new RootCommand();
-        command.Options.Clear();
+        var recordFile = new Option<string?>(_recordOption, _recordAlias);
+        var replayFile = new Option<FileInfo>(_replayOption, _replayAlias);
+        replayFile.AcceptExistingOnly();
+        var replaySpeed = new Option<double>(_replaySpeedOption, _replaySpeedAlias)
+        {
+            DefaultValueFactory = _ => 1,
+            CustomParser = ParseTiming,
+        };
+
+        var replayTimeout = new Option<double>(_replayTimeoutOption, _replayTimeoutAlias)
+        {
+            DefaultValueFactory = _ => _defaultReplayTimeout,
+            CustomParser = ParseTiming,
+        };
+
+        var replayUsers = new Option<int>(_usersOption, _usersAlias)
+        {
+            DefaultValueFactory = _ => 1,
+            Description = Resources.ReplayUsersDescription,
+        };
+
+        var userInterval = new Option<double>(_userIntervalOption, _userIntervalAlias)
+        {
+            CustomParser = ParseTiming,
+            Description = Resources.UserIntervalDescription,
+        };
+
+        var replayGroup = new Option<string?>(_replayGroupOption);
+        var captureDirectory = new Option<string?>(_captureDirectoryOption, _captureAlias);
+        var command = new RootCommand(Resources.CommandDescription);
+        var help = command.Options.OfType<HelpOption>().Single();
+        help.Action = new BannerHelpAction((HelpAction)help.Action!);
         command.Arguments.Add(host);
+        command.Options.Add(info);
         command.Options.Add(port);
         command.Options.Add(tls);
         command.Options.Add(tlsCertificate);
         command.Options.Add(tlsTrustAll);
+        command.Options.Add(tlsTrustAllShortcut);
         command.Options.Add(wide);
-        command.Options.Add(help);
-        command.Options.Add(version);
         command.Options.Add(device);
         command.Options.Add(codePage);
         command.Options.Add(keyboard);
         command.Options.Add(captureDirectory);
-        var parsed = command.Parse(args);
+        command.Options.Add(recordFile);
+        command.Options.Add(replayFile);
+        command.Options.Add(replaySpeed);
+        command.Options.Add(replayTimeout);
+        command.Options.Add(replayGroup);
+        command.Options.Add(replayUsers);
+        command.Options.Add(userInterval);
+        host.Description = Resources.HostDescription;
+        port.Description = Resources.PortDescription;
+        tls.Description = Resources.TlsDescription;
+        tlsCertificate.Description = Resources.TlsCertificateDescription;
+        tlsTrustAll.Description = Resources.TlsTrustAllDescription;
+        tlsTrustAllShortcut.Description = Resources.TlsTrustAllShortcutDescription;
+        wide.Description = Resources.WideDescription;
+        device.Description = Resources.DeviceDescription;
+        codePage.Description = Resources.CodePageDescription;
+        keyboard.Description = Resources.KeyboardDescription;
+        captureDirectory.Description = Resources.CaptureDescription;
+        recordFile.Description = Resources.RecordDescription;
+        replayFile.Description = Resources.ReplayDescription;
+        replaySpeed.Description = Resources.ReplaySpeedDescription;
+        replayTimeout.Description = Resources.ReplayTimeoutDescription;
+        replayGroup.Hidden = true;
+        var parsed = command.Parse(args.Length == 0 ? [_helpOption] : args);
         if (parsed.Errors.Count != 0)
             throw new ArgumentException(string.Join(Environment.NewLine, parsed.Errors.Select(error => error.Message)));
 
+        if (parsed.Action is BannerHelpAction or SystemInfoAction || parsed.GetResult(_versionOption) != null)
+        {
+            return new Options
+            {
+                Help = parsed.Action is BannerHelpAction,
+                Version = parsed.GetResult(_versionOption) != null,
+                Invocation = parsed,
+            };
+        }
+
         var options = new Options
         {
-            _captureDirectory = parsed.GetValue(captureDirectory),
+            CaptureDirectory = parsed.GetValue(captureDirectory),
+            RecordFile = parsed.GetValue(recordFile),
+            ReplayFile = parsed.GetValue(replayFile)?.FullName,
+            ReplaySpeed = parsed.GetValue(replaySpeed),
+            ReplayUsers = parsed.GetValue(replayUsers),
+            UserInterval = parsed.GetValue(userInterval),
+            ReplayTimeout = parsed.GetValue(replayTimeout),
+            ReplayGroup = parsed.GetValue(replayGroup),
             Host = parsed.GetValue(host) ?? string.Empty,
-            Tls = parsed.GetValue(tls),
-            _tlsCertificate = parsed.GetValue(tlsCertificate),
-            _tlsTrustAll = parsed.GetValue(tlsTrustAll),
+            Tls = parsed.GetValue(tls) || parsed.GetValue(tlsTrustAllShortcut),
+            TlsCertificate = parsed.GetValue(tlsCertificate),
+            TlsTrustAll = parsed.GetValue(tlsTrustAll) || parsed.GetValue(tlsTrustAllShortcut),
             Wide = parsed.GetValue(wide),
-            Help = args.Length == 0 || parsed.GetValue(help),
-            Version = parsed.GetValue(version),
             Device = parsed.GetValue(device) ?? string.Empty,
+            DeviceSpecified = parsed.GetResult(device) is { Implicit: false },
             CodePage = parsed.GetValue(codePage),
             Keyboard = parsed.GetValue(keyboard) ?? _defaultKeyboard,
         };
 
-        if (options.Help || options.Version)
-            return options;
-
         if (string.IsNullOrWhiteSpace(options.Host))
             throw new ArgumentException(Resources.HostRequired);
 
-        if (options._captureDirectory != null && string.IsNullOrWhiteSpace(options._captureDirectory))
+        if (options.CaptureDirectory != null && string.IsNullOrWhiteSpace(options.CaptureDirectory))
             throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, Resources.InvalidValue,
-                _captureDirectoryOption, options._captureDirectory));
+                _captureDirectoryOption, options.CaptureDirectory));
 
-        if (!options.Tls && (options._tlsCertificate != null || options._tlsTrustAll))
+        if (options.RecordFile != null && (string.IsNullOrWhiteSpace(options.RecordFile) || options.ReplayFile != null))
+            throw new ArgumentException(Resources.RecordingOptions);
+
+        if (!double.IsFinite(options.ReplaySpeed) || options.ReplaySpeed < 0 || !double.IsFinite(options.ReplayTimeout)
+            || options.ReplayTimeout <= 0 || options.ReplayTimeout > _maximumReplayTimeout)
+            throw new ArgumentException(Resources.ReplayTimingOptions);
+
+        if (options.ReplayUsers < 1 || !double.IsFinite(options.UserInterval)
+            || options.UserInterval < 0 || options.UserInterval > _maximumReplayTimeout)
+            throw new ArgumentException(Resources.ReplayUsersOptions);
+
+        var hasReplayTiming = parsed.GetResult(replaySpeed) is { Implicit: false }
+            || parsed.GetResult(replayTimeout) is { Implicit: false }
+            || parsed.GetResult(replayUsers) is { Implicit: false }
+            || parsed.GetResult(userInterval) is { Implicit: false };
+        if (options.ReplayFile == null && hasReplayTiming)
+            throw new ArgumentException(Resources.ReplayOptions);
+
+        if (options.ReplayGroup != null && (options.ReplayFile == null || !Guid.TryParseExact(options.ReplayGroup, "N", out _)))
+            throw new ArgumentException(Resources.ReplayOptions);
+
+        if (!options.Tls && (options.TlsCertificate != null || options.TlsTrustAll))
             throw new ArgumentException(Resources.TlsOptionsRequireTls);
 
-        if (options._tlsCertificate != null && options._tlsTrustAll)
+        if (options.TlsCertificate != null && options.TlsTrustAll)
             throw new ArgumentException(Resources.TlsOptionsExclusive);
 
         options.Port = parsed.GetValue(port) ?? (options.Tls ? _tlsPort : _telnetPort);
@@ -121,6 +246,27 @@ internal sealed class Options
         options.Device = ValidateName(options.Device, _deviceOption, false);
         options.Keyboard = ValidateName(options.Keyboard, _keyboardOption, true);
         return options;
+    }
+
+    internal static string DefaultDevice(string machineName)
+    {
+        var name = new string(machineName.ToUpperInvariant()
+            .Select(character => char.IsAsciiLetterOrDigit(character) || character is '$' or '#' or '@' ? character : '_').ToArray());
+        if (name.Length == 0 || !char.IsAsciiLetter(name[0]) && name[0] is not '$' and not '#' and not '@')
+        {
+            name = _devicePrefix + name;
+        }
+
+        return name[..Math.Min(name.Length, _maximumNameLength)];
+    }
+
+    private static double ParseTiming(ArgumentResult result)
+    {
+        if (result.Tokens.Count == 1 && double.TryParse(result.Tokens[0].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            return value;
+
+        result.AddError(Resources.ReplayTimingOptions);
+        return 0;
     }
 
     private static void ValidateNumber(int value, string option)

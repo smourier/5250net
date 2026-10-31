@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
@@ -14,6 +14,8 @@
 	<ItemGroup>
 		<Using Include="System" />
 		<Using Include="System.Collections.Generic" />
+		<Using Include="System.CommandLine" />
+		<Using Include="System.Diagnostics" />
 		<Using Include="System.Globalization" />
 		<Using Include="System.IO" />
 		<Using Include="System.Linq" />

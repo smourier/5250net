@@ -10,12 +10,13 @@
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<Description>5250 terminal emulator for .NET as a Console Application</Description>
 		<Title>5250net</Title>
-		<Copyright>Copyright © 2015-2026 Simon Mourier. All rights reserved.</Copyright>
+		<Copyright>Copyright (C) 2025-2026 Simon Mourier. All rights reserved.</Copyright>
 		<RepositoryUrl>https://github.com/smourier/5250net</RepositoryUrl>
-		<Version>1.0.0</Version>
+		<Version>1.1.0</Version>
 		<AssemblyTitle>5250net - AOT</AssemblyTitle>
 		<Product>5250net</Product>
 		<Company>Simon Mourier</Company>
+		<ApplicationManifest>app.manifest</ApplicationManifest>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -35,8 +36,14 @@
 		<Using Include="System.Buffers.Binary" />
 		<Using Include="System.Collections.Generic" />
 		<Using Include="System.CommandLine" />
+		<Using Include="System.CommandLine.Help" />
+		<Using Include="System.CommandLine.Invocation" />
+		<Using Include="System.CommandLine.Parsing" />
+		<Using Include="System.ComponentModel" />
+		<Using Include="System.Diagnostics" />
 		<Using Include="System.Globalization" />
 		<Using Include="System.IO" />
+		<Using Include="System.IO.Pipes" />
 		<Using Include="System.Linq" />
 		<Using Include="System.Net" />
 		<Using Include="System.Net.Security" />
@@ -48,6 +55,7 @@
 		<Using Include="System.Security.Cryptography.X509Certificates" />
 		<Using Include="System.Text" />
 		<Using Include="System.Text.Encodings.Web" />
+		<Using Include="System.Text.Json" />
 		<Using Include="System.Text.Unicode" />
 		<Using Include="System.Threading" />
 		<Using Include="System.Threading.Tasks" />
