@@ -27,6 +27,13 @@ internal static class Program
         HtmlCapture();
         Startup();
         Fuzz();
+        await AddressFallbackAsync();
+        await LocalhostConnectionAsync(IPAddress.Loopback);
+        if (Socket.OSSupportsIPv6)
+        {
+            await LocalhostConnectionAsync(IPAddress.IPv6Loopback);
+        }
+
         await TransportAsync(false);
         await TransportAsync(true);
         await FragmentationAsync();
@@ -214,6 +221,13 @@ internal static class Program
             Check(Path.GetDirectoryName(sessionDirectory) == directory, nameof(HtmlCapture));
             Check(File.Exists(indexPath), nameof(HtmlCapture));
             var index = File.ReadAllText(indexPath);
+            Check(index.Contains("<dt>Application version</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>Operating system</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>OS version</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>OS architecture</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>Process architecture</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>.NET runtime</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<dt>Local time zone</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(index.Contains("<body class=\"capture-gallery\">", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(index.Contains("<header", StringComparison.Ordinal) && !index.Contains("<footer", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(index.Contains(Path.GetFileName(first) + "#screen", StringComparison.Ordinal), nameof(HtmlCapture));
@@ -226,6 +240,7 @@ internal static class Program
             Check(name.EndsWith("Z.html", StringComparison.Ordinal), nameof(HtmlCapture));
             var html = File.ReadAllText(first, Encoding.UTF8);
             Check(!html.Contains("<body class=\"capture-gallery\">", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!html.Contains("<dt>Operating system</dt>", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(html.Contains("é &lt;b&gt;&amp;", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(html.Contains("&lt;host&amp;&gt;", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(!html.Contains("SECRET", StringComparison.Ordinal), nameof(HtmlCapture));
@@ -583,6 +598,68 @@ internal static class Program
         Check(true, nameof(Fuzz));
     }
 
+    private static async Task AddressFallbackAsync()
+    {
+        using var cancellation = new CancellationTokenSource(_timeout);
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var accepting = listener.AcceptTcpClientAsync(cancellation.Token).AsTask();
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        using var client = await Terminal5250.Program.ConnectAsync([IPAddress.IPv6Loopback, IPAddress.Loopback], port, cancellation.Token);
+        using var server = await accepting;
+        Check(client.Connected && client.NoDelay, nameof(AddressFallbackAsync));
+        Check(timer.Elapsed < TimeSpan.FromMilliseconds(1800), nameof(AddressFallbackAsync));
+        using var canceled = new CancellationTokenSource();
+        canceled.Cancel();
+        try
+        {
+            using var unexpected = await Terminal5250.Program.ConnectAsync([IPAddress.Loopback], port, canceled.Token);
+            Check(false, nameof(AddressFallbackAsync));
+        }
+        catch (OperationCanceledException)
+        {
+            Check(true, nameof(AddressFallbackAsync));
+        }
+
+        listener.Stop();
+        try
+        {
+            using var unexpected = await Terminal5250.Program.ConnectAsync([IPAddress.Loopback], port, cancellation.Token);
+            Check(false, nameof(AddressFallbackAsync));
+        }
+        catch (SocketException)
+        {
+            Check(true, nameof(AddressFallbackAsync));
+        }
+    }
+
+    private static async Task LocalhostConnectionAsync(IPAddress address)
+    {
+        using var cancellation = new CancellationTokenSource(_timeout);
+        using var listener = new TcpListener(address, 0);
+        if (address.AddressFamily == AddressFamily.InterNetworkV6)
+        {
+            listener.Server.DualMode = false;
+        }
+
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var host = address.AddressFamily == AddressFamily.InterNetworkV6 ? "::1" : "LOCALHOST";
+        var options = Options.Parse([host, "--port", port.ToString(CultureInfo.InvariantCulture)]);
+        var accepting = listener.AcceptTcpClientAsync(cancellation.Token).AsTask();
+        using var client = await Terminal5250.Program.ConnectAsync(options, cancellation.Token);
+        using var server = await accepting;
+        var remote = ((IPEndPoint)client.Client.RemoteEndPoint!).Address;
+        if (remote.IsIPv4MappedToIPv6)
+        {
+            remote = remote.MapToIPv4();
+        }
+
+        Check(remote.Equals(address), nameof(LocalhostConnectionAsync));
+        Check(options.Host == host, nameof(LocalhostConnectionAsync));
+    }
+
     private static async Task CertificateRejectionAsync()
     {
         using var cancellation = new CancellationTokenSource(_timeout);
@@ -694,8 +771,9 @@ internal static class Program
         using var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         var accepting = listener.AcceptTcpClientAsync(cancellation.Token).AsTask();
-        using var client = new TcpClient();
-        await client.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port, cancellation.Token);
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        var endpoint = Options.Parse(["localhost", "--port", port.ToString(CultureInfo.InvariantCulture)]);
+        using var client = await Terminal5250.Program.ConnectAsync(endpoint, cancellation.Token);
         using var server = await accepting;
         await using var serverStream = new SslStream(server.GetStream());
         await using var clientStream = new SslStream(client.GetStream());
@@ -708,6 +786,7 @@ internal static class Program
         {
             await Terminal5250.Program.AuthenticateAsync(clientStream, options, cancellation.Token);
             await serverHandshake;
+            Check(serverStream.TargetHostName == options.Host, nameof(AuthenticateCertificateAsync));
             return true;
         }
         catch (AuthenticationException)

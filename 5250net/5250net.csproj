@@ -38,8 +38,11 @@
 		<Using Include="System.Globalization" />
 		<Using Include="System.IO" />
 		<Using Include="System.Linq" />
+		<Using Include="System.Net" />
 		<Using Include="System.Net.Security" />
 		<Using Include="System.Net.Sockets" />
+		<Using Include="System.Reflection" />
+		<Using Include="System.Runtime.InteropServices" />
 		<Using Include="System.Security.Authentication" />
 		<Using Include="System.Security.Cryptography" />
 		<Using Include="System.Security.Cryptography.X509Certificates" />

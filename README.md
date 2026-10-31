@@ -20,6 +20,10 @@ Use `--help` to see all options.
 
 ## Connections and TLS
 
+Connections to any hostname try the preferred DNS address first, then stagger further attempts by 250 milliseconds.
+The other address family is tried next when available. The first successful connection is used.
+TLS certificate validation and SNI continue to use the hostname from the command line.
+
 The client connects directly to the IBM i Telnet service, including services used by IBM i Access Client Solutions (ACS).
 ACS is a separate client, not a server or transport. The application does not launch ACS or read ACS session files.
 
@@ -51,6 +55,7 @@ Use `--capture-directory PATH` to save complete host screens as standalone UTF-8
 Each process has its own session identifier, its process ID.
 Each session writes to a separate `<process ID>_<session-start UTC timestamp>` subdirectory of the capture directory.
 The session directory contains `index.html` and all captured frame pages.
+The index header includes the application version, operating system and version, OS and process architectures, .NET runtime, and local time zone.
 Frame files are named `<process ID>_<six-digit screen number>_<UTC timestamp>.html`.
 For example, `1234_000001_20261031T1200001234567Z.html` is the first saved screen of process 1234.
 
@@ -116,6 +121,24 @@ Unix terminals use ANSI underlining, with the same underscore fallback when `TER
 No native console imports are used.
 Blinking and column separator presentation are not currently rendered.
 Protected fields cannot be edited. Non-display fields remain blank while retaining their input data for submission.
+
+## Manual GitHub builds
+
+The `build` workflow runs only when started manually from the Actions tab or the GitHub CLI.
+It checks and publishes Windows x64 and Linux x64 Native AOT builds with .NET 10.
+Build artifacts include the native executable and debug symbols.
+Downloadable packages include the executable, README, and license, plus the PNG icon when available.
+Windows packages are ZIP files. Linux packages are tar.gz files to preserve the executable permission.
+The Linux build uses Ubuntu 24.04 as its native library baseline.
+
+```powershell
+gh workflow run build.yml
+gh workflow run build.yml -f ref=main
+gh workflow run build.yml -f release=true
+```
+
+The optional `release` input defaults to false. When enabled, it creates a release tagged from `Version` in the project file.
+Both builds and the release use the same resolved commit. An existing release or a tag pointing at another commit stops publication.
 
 ## Protocol scope
 

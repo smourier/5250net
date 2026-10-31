@@ -337,6 +337,16 @@ internal sealed class HtmlScreenCapture
         AppendFact(builder, Resources.HtmlSession, Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
         AppendFact(builder, Resources.HtmlSessionStarted, _sessionStarted.ToString(_timestampFormat, CultureInfo.InvariantCulture));
         AppendFact(builder, Resources.HtmlScreenCount, _frames.Count.ToString(CultureInfo.InvariantCulture));
+        var assembly = typeof(HtmlScreenCapture).Assembly;
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString() ?? Resources.HtmlUnknown;
+        AppendFact(builder, Resources.HtmlApplicationVersion, version);
+        AppendFact(builder, Resources.HtmlOperatingSystem, RuntimeInformation.OSDescription);
+        AppendFact(builder, Resources.HtmlOperatingSystemVersion, Environment.OSVersion.VersionString);
+        AppendFact(builder, Resources.HtmlOperatingSystemArchitecture, RuntimeInformation.OSArchitecture.ToString());
+        AppendFact(builder, Resources.HtmlProcessArchitecture, RuntimeInformation.ProcessArchitecture.ToString());
+        AppendFact(builder, Resources.HtmlRuntime, RuntimeInformation.FrameworkDescription);
+        AppendFact(builder, Resources.HtmlTimeZone, TimeZoneInfo.Local.Id);
         builder.Append(_connectionDetails);
         builder.Append(_detailsClose);
         AppendArguments(builder);

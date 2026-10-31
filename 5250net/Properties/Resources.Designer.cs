@@ -177,6 +177,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Application version.
+        /// </summary>
+        internal static string HtmlApplicationVersion {
+            get {
+                return ResourceManager.GetString("HtmlApplicationVersion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Command-line arguments.
         /// </summary>
         internal static string HtmlArguments {
@@ -339,6 +348,33 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Operating system.
+        /// </summary>
+        internal static string HtmlOperatingSystem {
+            get {
+                return ResourceManager.GetString("HtmlOperatingSystem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to OS architecture.
+        /// </summary>
+        internal static string HtmlOperatingSystemArchitecture {
+            get {
+                return ResourceManager.GetString("HtmlOperatingSystemArchitecture", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to OS version.
+        /// </summary>
+        internal static string HtmlOperatingSystemVersion {
+            get {
+                return ResourceManager.GetString("HtmlOperatingSystemVersion", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Port.
         /// </summary>
         internal static string HtmlPort {
@@ -357,6 +393,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Process architecture.
+        /// </summary>
+        internal static string HtmlProcessArchitecture {
+            get {
+                return ResourceManager.GetString("HtmlProcessArchitecture", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Screen reloaded.
         /// </summary>
         internal static string HtmlReloaded {
@@ -371,6 +416,15 @@ namespace Terminal5250.Properties {
         internal static string HtmlRemoteEndpoint {
             get {
                 return ResourceManager.GetString("HtmlRemoteEndpoint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to .NET runtime.
+        /// </summary>
+        internal static string HtmlRuntime {
+            get {
+                return ResourceManager.GetString("HtmlRuntime", resourceCulture);
             }
         }
         
@@ -452,6 +506,15 @@ namespace Terminal5250.Properties {
         internal static string HtmlSystemTrust {
             get {
                 return ResourceManager.GetString("HtmlSystemTrust", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Local time zone.
+        /// </summary>
+        internal static string HtmlTimeZone {
+            get {
+                return ResourceManager.GetString("HtmlTimeZone", resourceCulture);
             }
         }
         

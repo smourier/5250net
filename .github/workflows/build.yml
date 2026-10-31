@@ -1,0 +1,239 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit. Leave empty for the selected workflow ref.'
+        required: false
+        default: ''
+      release:
+        description: 'Publish a GitHub release, tagged from the version in the project'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  prepare:
+    name: resolve the build
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.version.outputs.sha }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: read the version and commit
+        id: version
+        run: |
+          $projectPath = Join-Path '5250net' '5250net.csproj'
+          [xml]$project = Get-Content -LiteralPath $projectPath -Raw
+          $versionNode = $project.SelectSingleNode('/Project/PropertyGroup/Version')
+          $version = if ($versionNode) { $versionNode.InnerText.Trim() } else { [string]::Empty }
+          if ([string]::IsNullOrWhiteSpace($version))
+          {
+            throw 'No Version was found in 5250net.csproj.'
+          }
+
+          $tag = "v$version"
+          git check-ref-format "refs/tags/$tag"
+          if ($LASTEXITCODE -ne 0)
+          {
+            throw 'The project version does not form a valid Git tag.'
+          }
+
+          $sha = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0)
+          {
+            exit $LASTEXITCODE
+          }
+
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "version=$version"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "tag=$tag"
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "sha=$sha"
+
+  build:
+    name: ${{ matrix.rid }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            rid: win-x64
+            executable: 5250net.exe
+            extension: zip
+          - os: ubuntu-24.04
+            rid: linux-x64
+            executable: 5250net
+            extension: tar.gz
+    env:
+      RID: ${{ matrix.rid }}
+      EXECUTABLE: ${{ matrix.executable }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      EXTENSION: ${{ matrix.extension }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: cache NuGet
+        uses: actions/cache@v6
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ matrix.rid }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-${{ matrix.rid }}-
+
+      - name: install Linux native build prerequisites
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+
+      - name: run checks
+        run: |
+          $project = Join-Path '5250net.Tests' '5250net.Tests.csproj'
+          dotnet run --project $project -c Release -p:PublishAot=false
+          if ($LASTEXITCODE -ne 0)
+          {
+            exit $LASTEXITCODE
+          }
+
+      - name: publish ${{ matrix.rid }}
+        run: |
+          $project = Join-Path '5250net' '5250net.csproj'
+          $output = Join-Path $env:GITHUB_WORKSPACE (Join-Path 'out' $env:RID)
+          dotnet publish $project -c Release -r $env:RID -p:PublishAot=true --self-contained true -o $output
+          if ($LASTEXITCODE -ne 0)
+          {
+            exit $LASTEXITCODE
+          }
+
+          $executable = Join-Path $output $env:EXECUTABLE
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf))
+          {
+            throw "No executable was produced at $executable."
+          }
+
+      - name: package ${{ matrix.rid }}
+        run: |
+          $output = Join-Path 'out' $env:RID
+          $package = Join-Path 'package' $env:RID
+          New-Item -ItemType Directory -Path $package -Force | Out-Null
+          New-Item -ItemType Directory -Path 'assets' -Force | Out-Null
+          Copy-Item -LiteralPath (Join-Path $output $env:EXECUTABLE) -Destination $package
+          Copy-Item -LiteralPath 'LICENSE', 'README.md' -Destination $package
+          $icon = Join-Path $output (Join-Path 'Assets' '5250net.png')
+          if (Test-Path -LiteralPath $icon)
+          {
+            Copy-Item -LiteralPath $icon -Destination $package
+          }
+
+          $archive = Join-Path 'assets' "5250net-$env:VERSION-$env:RID.$env:EXTENSION"
+          if ($IsWindows)
+          {
+            Compress-Archive -Path (Join-Path $package '*') -DestinationPath $archive
+          }
+          else
+          {
+            chmod +x (Join-Path $package $env:EXECUTABLE)
+            if ($LASTEXITCODE -ne 0)
+            {
+              exit $LASTEXITCODE
+            }
+
+            tar -czf $archive -C $package .
+            if ($LASTEXITCODE -ne 0)
+            {
+              exit $LASTEXITCODE
+            }
+          }
+
+      - name: upload ${{ matrix.rid }} build
+        uses: actions/upload-artifact@v7
+        with:
+          name: 5250net-${{ matrix.rid }}
+          path: out/${{ matrix.rid }}/
+          if-no-files-found: error
+
+      - name: upload ${{ matrix.rid }} package
+        uses: actions/upload-artifact@v7
+        with:
+          name: 5250net-${{ matrix.rid }}-release
+          path: assets/*
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: publish the release
+    needs: [prepare, build]
+    if: inputs.release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      SHA: ${{ needs.prepare.outputs.sha }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.sha }}
+
+      - name: collect packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: 5250net-*-release
+          merge-multiple: true
+          path: assets
+
+      - name: create the release
+        run: |
+          gh release view $env:TAG --repo $env:REPO *> $null
+          if ($LASTEXITCODE -eq 0)
+          {
+            throw "$env:TAG is already released. Bump Version in 5250net.csproj and run this again."
+          }
+
+          $tags = @(git ls-remote origin "refs/tags/$env:TAG" "refs/tags/$env:TAG^{}")
+          if ($LASTEXITCODE -ne 0)
+          {
+            exit $LASTEXITCODE
+          }
+
+          $existing = $tags | Select-Object -Last 1
+          if ($existing -and ($existing -split '\s+')[0] -ne $env:SHA)
+          {
+            throw "$env:TAG already points at a different commit."
+          }
+
+          $packages = @(Get-ChildItem -LiteralPath 'assets' -File)
+          if ($packages.Count -ne 2)
+          {
+            throw 'Expected one Windows package and one Linux package.'
+          }
+
+          $packagePaths = $packages.FullName
+          gh release create $env:TAG @packagePaths --repo $env:REPO --target $env:SHA --title $env:TAG --generate-notes
+          if ($LASTEXITCODE -ne 0)
+          {
+            exit $LASTEXITCODE
+          }

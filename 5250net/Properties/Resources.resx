@@ -240,4 +240,25 @@ Escape resets an input error. Ctrl+Q disconnects.
   <data name="HtmlMenuChoice" xml:space="preserve">
     <value>Menu choice {0}, Enter</value>
   </data>
+  <data name="HtmlApplicationVersion" xml:space="preserve">
+    <value>Application version</value>
+  </data>
+  <data name="HtmlOperatingSystem" xml:space="preserve">
+    <value>Operating system</value>
+  </data>
+  <data name="HtmlOperatingSystemVersion" xml:space="preserve">
+    <value>OS version</value>
+  </data>
+  <data name="HtmlOperatingSystemArchitecture" xml:space="preserve">
+    <value>OS architecture</value>
+  </data>
+  <data name="HtmlProcessArchitecture" xml:space="preserve">
+    <value>Process architecture</value>
+  </data>
+  <data name="HtmlRuntime" xml:space="preserve">
+    <value>.NET runtime</value>
+  </data>
+  <data name="HtmlTimeZone" xml:space="preserve">
+    <value>Local time zone</value>
+  </data>
 </root>

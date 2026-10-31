@@ -2,6 +2,7 @@
 
 internal static class Program
 {
+    private const int _connectionAttemptDelayMilliseconds = 250;
     private const string _serverAuthenticationOid = "1.3.6.1.5.5.7.3.1";
     private const string _ebcdicProbe = " A0";
     private static readonly byte[] _ebcdicSignature = [0x40, 0xC1, 0xF0];
@@ -47,22 +48,19 @@ internal static class Program
             if (Console.IsInputRedirected || Console.IsOutputRedirected)
                 throw new InvalidOperationException(Resources.Redirected);
 
-            using var client = new TcpClient
-            {
-                NoDelay = true,
-            };
-
             using var connectionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellation.Token);
             connectionCancellation.CancelAfter(_connectionTimeout);
+            TcpClient connected;
             try
             {
-                await client.ConnectAsync(options.Host, options.Port, connectionCancellation.Token);
+                connected = await ConnectAsync(options, connectionCancellation.Token);
             }
             catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
             {
                 throw new TimeoutException(Resources.ConnectTimeout);
             }
 
+            using var client = connected;
             await using Stream stream = options.Tls ? new SslStream(client.GetStream(), false) : client.GetStream();
             if (stream is SslStream secure)
             {
@@ -100,6 +98,88 @@ internal static class Program
         finally
         {
             Console.CancelKeyPress -= cancelHandler;
+        }
+    }
+
+    internal static async Task<TcpClient> ConnectAsync(Options options, CancellationToken cancellation)
+    {
+        var resolved = await Dns.GetHostAddressesAsync(options.Host, cancellation);
+        return await ConnectAsync(resolved, options.Port, cancellation);
+    }
+
+    internal static async Task<TcpClient> ConnectAsync(IEnumerable<IPAddress> addresses, int port, CancellationToken cancellation)
+    {
+        var ordered = addresses.Distinct().ToList();
+        if (ordered.Count == 0)
+            throw new SocketException((int)SocketError.HostNotFound);
+
+        var alternate = ordered.FindIndex(address => address.AddressFamily != ordered[0].AddressFamily);
+        if (alternate > 1)
+        {
+            var address = ordered[alternate];
+            ordered.RemoveAt(alternate);
+            ordered.Insert(1, address);
+        }
+
+        using var attemptsCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+        var attempts = ordered.Select((address, index) =>
+            ConnectAddressAsync(address, port, index * _connectionAttemptDelayMilliseconds, attemptsCancellation.Token)).ToList();
+        SocketException? failure = null;
+        try
+        {
+            while (attempts.Count > 0)
+            {
+                var completed = await Task.WhenAny(attempts);
+                attempts.Remove(completed);
+                try
+                {
+                    return await completed;
+                }
+                catch (SocketException exception)
+                {
+                    failure = exception;
+                }
+            }
+
+            throw failure!;
+        }
+        finally
+        {
+            attemptsCancellation.Cancel();
+            foreach (var attempt in attempts)
+            {
+                try
+                {
+                    using var unused = await attempt;
+                }
+                catch (Exception exception) when (exception is SocketException or OperationCanceledException)
+                {
+                }
+            }
+        }
+    }
+
+    private static async Task<TcpClient> ConnectAddressAsync(IPAddress address, int port, int delay, CancellationToken cancellation)
+    {
+        if (delay > 0)
+        {
+            await Task.Delay(delay, cancellation);
+        }
+
+        var client = new TcpClient(address.AddressFamily)
+        {
+            NoDelay = true,
+        };
+
+        try
+        {
+            await client.ConnectAsync(address, port, cancellation);
+            return client;
+        }
+        catch
+        {
+            client.Dispose();
+            throw;
         }
     }
 
