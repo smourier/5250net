@@ -20,13 +20,18 @@ internal static class Program
         OptionsParsing();
         FieldRules();
         DefaultInputCursor();
+        NavigationTransitions();
+        ModifierInput();
         FieldRendering();
+        HtmlCapture();
         Startup();
         Fuzz();
         await TransportAsync(false);
         await TransportAsync(true);
         await FragmentationAsync();
+        await DisconnectWithUnreadDataAsync();
         await CertificateRejectionAsync();
+        await CertificateTrustAsync();
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture, Resources.Passed, _checks));
     }
 
@@ -100,6 +105,166 @@ internal static class Program
         Check(!ConsoleRenderer.BuildRow(display, 2, true).Contains('p'), nameof(FieldRendering));
         Check(ConsoleRenderer.BuildRow(display, 2, false).AsSpan(9, 8).SequenceEqual("        "), nameof(FieldRendering));
         Check(display.Data[169] == 0x97, nameof(FieldRendering));
+    }
+
+    private static void NavigationTransitions()
+    {
+        var display = NewDisplay();
+        foreach (var key in new[] { ConsoleKey.F3, ConsoleKey.F12 })
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                Check(display.Key(Key(key)) != null, nameof(NavigationTransitions));
+                var row = (byte)(4 + i % 2);
+                display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 1, 1, 0,
+                    0x11, row, 9, 0x1D, 0x40, 0, 0x24, 0, 5, 4, 0x52, 0, 8], 3));
+                Check(display.Cursor == (row - 1) * 80 + 9, nameof(NavigationTransitions));
+                display.Key(Key(ConsoleKey.A, 'a'));
+                Check(!display.InputError, nameof(NavigationTransitions));
+            }
+        }
+
+        display = NewDisplay();
+        display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 0x14, 3, 10, 4, 0x52, 0, 8], 3));
+        Check(display.Cursor == 169, nameof(NavigationTransitions));
+        display.Key(Key(ConsoleKey.F3));
+        Check(display.Cursor == 89, nameof(NavigationTransitions));
+        display.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8, 0x13, 2, 10,
+            1, 1, 0, 0x11, 4, 9, 0x1D, 0x40, 0, 0x24, 0, 5, 0x14, 5, 10], 3));
+        Check(display.Cursor == 329, nameof(NavigationTransitions));
+        display.Apply(GdsRecord.Create([4, 0x11, 0x20, 8], 3));
+        Check(display.Cursor == 89, nameof(NavigationTransitions));
+    }
+
+    private static void ModifierInput()
+    {
+        var altGrQ = new ConsoleKeyInfo('@', ConsoleKey.Q, false, true, true);
+        Check(!ConsoleInput.IsQuit(altGrQ), nameof(ModifierInput));
+        Check(ConsoleInput.IsQuit(Key(ConsoleKey.Q, control: true)), nameof(ModifierInput));
+        Check(ConsoleInput.IsQuit(Key(ConsoleKey.C, control: true)), nameof(ModifierInput));
+        var display = NewDisplay();
+        Check(display.Key(altGrQ) == null && !display.InputError, nameof(ModifierInput));
+        Check(display.Data[89] == _encoding.GetBytes("@")[0], nameof(ModifierInput));
+        var altGrA = new ConsoleKeyInfo('@', ConsoleKey.A, false, true, true);
+        Check(display.Key(altGrA) == null, nameof(ModifierInput));
+    }
+
+    private static async Task DisconnectWithUnreadDataAsync()
+    {
+        using var cancellation = new CancellationTokenSource(_timeout);
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var accepting = listener.AcceptTcpClientAsync(cancellation.Token).AsTask();
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port, cancellation.Token);
+        using var server = await accepting;
+        var stream = client.GetStream();
+        var transport = new TelnetTransport(stream, Options.Parse(["localhost"]));
+        var reading = transport.ReadAsync(CancellationToken.None);
+        var disconnecting = Terminal5250.Program.DisconnectAsync(client, stream, reading);
+        var serverStream = server.GetStream();
+        Check(await serverStream.ReadAsync(new byte[1], cancellation.Token) == 0, nameof(DisconnectWithUnreadDataAsync));
+        var chunk = new byte[4096];
+        Array.Fill(chunk, (byte)0x40);
+        for (var i = 0; i < 64; i++)
+        {
+            await serverStream.WriteAsync(chunk, cancellation.Token);
+            await Task.Delay(1, cancellation.Token);
+        }
+
+        server.Client.Shutdown(SocketShutdown.Send);
+        await disconnecting.WaitAsync(cancellation.Token);
+        try
+        {
+            await reading;
+            Check(false, nameof(DisconnectWithUnreadDataAsync));
+        }
+        catch (InvalidDataException)
+        {
+            Check(true, nameof(DisconnectWithUnreadDataAsync));
+        }
+    }
+
+    private static void HtmlCapture()
+    {
+        var temporary = Path.GetFullPath(Path.GetTempPath());
+        var directory = Path.Combine(temporary, nameof(HtmlCapture) + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var options = Options.Parse(["<host&>", "--port", "2323", "--tls", "--tls-trust-all", "--device", "DEV01"]);
+            string[] arguments = ["<host&>", "--tls", "--tls-trust-all", "--capture-directory", "captures with spaces", "arg<&é>"];
+
+            var capture = new HtmlScreenCapture(directory, options, arguments, "127.0.0.1:2323");
+            var display = new Display(_encoding, true);
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            var text = _encoding.GetBytes("é <b>&");
+            var secret = _encoding.GetBytes("SECRET");
+            var record = GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+                0x11, 1, 1, 0x22, .. text, 0x20,
+                0x11, 2, 9, 0x1D, 0x40, 0, 0x24, 0, 5,
+                0x11, 3, 9, 0x1D, 0x40, 0, 0x27, 0, 6, .. secret,
+                0x13, 2, 10, 4, 0x52, 0, 0], 3);
+            display.Apply(record);
+            var first = capture.Save(display)!;
+            var name = Path.GetFileName(first);
+            var expectedPrefix = Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "_000001_";
+            Check(name.StartsWith(expectedPrefix, StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(name.EndsWith("Z.html", StringComparison.Ordinal), nameof(HtmlCapture));
+            var html = File.ReadAllText(first, Encoding.UTF8);
+            Check(html.Contains("é &lt;b&gt;&amp;", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("&lt;host&amp;&gt;", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!html.Contains("SECRET", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!html.Contains("<b>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains(".a22{color:#ffffff;background-color:#000000}", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains(".a21{color:#000000;background-color:#00ff00}", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("text-decoration:underline", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("data-rows=\"24\" data-columns=\"80\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!html.Replace("\r\n", string.Empty).Contains('\n'), nameof(HtmlCapture));
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            Check(!html.Contains("rel=\"prev\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!html.Contains("rel=\"next\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("<dt>TLS</dt><dd>On</dd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("127.0.0.1:2323", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("Disabled (trust all)", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("DEV01", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("captures with spaces", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(html.Contains("arg&lt;&amp;é&gt;", StringComparison.Ordinal), nameof(HtmlCapture));
+            display.Key(Key(ConsoleKey.A, 'a'));
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            display.Apply(GdsRecord.Create([], 11));
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            display.Apply(record);
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 0x11, 3, 10, 0xC1]));
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            display.Apply(GdsRecord.Create([4, 0x11, 0, 8, 0x11, 1, 2, 0xC1]));
+            var second = capture.Save(display)!;
+            Check(Path.GetFileName(second).Contains("_000002_", StringComparison.Ordinal), nameof(HtmlCapture));
+            var firstUpdated = File.ReadAllText(first);
+            var secondHtml = File.ReadAllText(second);
+            Check(firstUpdated.Contains("rel=\"next\" href=\"" + Path.GetFileName(second) + "\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!firstUpdated.Contains("rel=\"prev\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(secondHtml.Contains("rel=\"prev\" href=\"" + Path.GetFileName(first) + "\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!secondHtml.Contains("rel=\"next\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            display.Apply(GdsRecord.Create([4, 0x20, 0]));
+            var wide = capture.Save(display)!;
+            Check(File.ReadAllText(wide).Contains("data-rows=\"27\" data-columns=\"132\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(Directory.GetFiles(directory).Length == 3, nameof(HtmlCapture));
+            secondHtml = File.ReadAllText(second);
+            var wideHtml = File.ReadAllText(wide);
+            Check(secondHtml.Contains("rel=\"next\" href=\"" + Path.GetFileName(wide) + "\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(wideHtml.Contains("rel=\"prev\" href=\"" + Path.GetFileName(second) + "\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!wideHtml.Contains("rel=\"next\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(first) == firstUpdated, nameof(HtmlCapture));
+            Check(capture.Save(display) == null && File.ReadAllText(second) == secondHtml, nameof(HtmlCapture));
+        }
+        finally
+        {
+            if (Directory.Exists(directory) && Path.GetDirectoryName(directory) == Path.TrimEndingDirectorySeparator(temporary))
+            {
+                Directory.Delete(directory, true);
+            }
+        }
     }
 
     private static void FunctionMasks()
@@ -224,6 +389,8 @@ internal static class Program
         Check(Options.Parse(["host", "--help"]).Help, nameof(OptionsParsing));
         Check(Options.Parse(["--version"]).Version, nameof(OptionsParsing));
         Check(Options.Parse([]).Help, nameof(OptionsParsing));
+        Check(Options.Parse(["host"])._captureDirectory == null, nameof(OptionsParsing));
+        Check(Options.Parse(["host", "--capture-directory", "captures"])._captureDirectory == "captures", nameof(OptionsParsing));
         string[][] invalid = [["host", "--port", "0"], ["host", "--port"], ["host", "--device", "bad name"], ["host", "--unknown"],
             ["host", "--port", "not-a-number"], ["host", "extra-host"]];
         foreach (var args in invalid)
@@ -329,12 +496,114 @@ internal static class Program
 
         try
         {
-            await Terminal5250.Program.AuthenticateAsync(clientStream, "localhost", cancellation.Token);
+            await Terminal5250.Program.AuthenticateAsync(clientStream, Options.Parse(["localhost", "--tls"]), cancellation.Token);
             Check(false, nameof(CertificateRejectionAsync));
         }
         catch (AuthenticationException)
         {
             Check(true, nameof(CertificateRejectionAsync));
+        }
+        finally
+        {
+            cancellation.Cancel();
+            try
+            {
+                await serverHandshake;
+            }
+            catch (Exception exception) when (exception is OperationCanceledException or IOException or AuthenticationException)
+            {
+            }
+        }
+    }
+
+    private static async Task CertificateTrustAsync()
+    {
+        var file = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".pem");
+        using var rootKey = RSA.Create(2048);
+        var rootRequest = new CertificateRequest("CN=5250net Test Root", rootKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        rootRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        rootRequest.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign, true));
+        using var root = rootRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(2));
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest("CN=localhost", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var names = new SubjectAlternativeNameBuilder();
+        names.AddDnsName("localhost");
+        request.CertificateExtensions.Add(names.Build());
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+        var purposes = new OidCollection { new("1.3.6.1.5.5.7.3.1") };
+
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(purposes, true));
+        using var issued = request.Create(root, DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1), new byte[] { 1 });
+        using var issuedWithKey = issued.CopyWithPrivateKey(key);
+        using var certificate = X509CertificateLoader.LoadPkcs12(issuedWithKey.Export(X509ContentType.Pfx), null);
+        try
+        {
+            File.WriteAllText(file, root.ExportCertificatePem().ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
+            var selected = Options.Parse(["localhost", "--tls", "--tls-certificate", file]);
+            Check(await AuthenticateCertificateAsync(certificate, selected), nameof(CertificateTrustAsync));
+            var wrongName = Options.Parse(["wrong.example", "--tls", "--tls-certificate", file]);
+            Check(!await AuthenticateCertificateAsync(certificate, wrongName), nameof(CertificateTrustAsync));
+            var trustAll = Options.Parse(["wrong.example", "--tls", "--tls-trust-all"]);
+            Check(await AuthenticateCertificateAsync(certificate, trustAll), nameof(CertificateTrustAsync));
+            using var selfSignedTemporary = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddDays(1));
+            using var selfSigned = X509CertificateLoader.LoadPkcs12(selfSignedTemporary.Export(X509ContentType.Pfx), null);
+            File.WriteAllText(file, selfSigned.ExportCertificatePem().ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
+            Check(await AuthenticateCertificateAsync(selfSigned, selected), nameof(CertificateTrustAsync));
+            Check(!await AuthenticateCertificateAsync(certificate, selected), nameof(CertificateTrustAsync));
+            File.WriteAllBytes(file, selfSigned.Export(X509ContentType.Cert));
+            Check(await AuthenticateCertificateAsync(selfSigned, selected), nameof(CertificateTrustAsync));
+            string[][] invalid =
+            [
+                ["localhost", "--tls-trust-all"],
+                ["localhost", "--tls-certificate", file],
+                ["localhost", "--tls", "--tls-certificate", file, "--tls-trust-all"],
+                ["localhost", "--tls", "--tls-certificate", file + ".missing"],
+            ];
+
+            foreach (var arguments in invalid)
+            {
+                try
+                {
+                    Options.Parse(arguments);
+                    Check(false, nameof(CertificateTrustAsync));
+                }
+                catch (ArgumentException)
+                {
+                    Check(true, nameof(CertificateTrustAsync));
+                }
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    private static async Task<bool> AuthenticateCertificateAsync(X509Certificate2 certificate, Options options)
+    {
+        using var cancellation = new CancellationTokenSource(_timeout);
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var accepting = listener.AcceptTcpClientAsync(cancellation.Token).AsTask();
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, ((IPEndPoint)listener.LocalEndpoint).Port, cancellation.Token);
+        using var server = await accepting;
+        await using var serverStream = new SslStream(server.GetStream());
+        await using var clientStream = new SslStream(client.GetStream());
+        var serverHandshake = serverStream.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
+        {
+            ServerCertificate = certificate,
+        }, cancellation.Token);
+
+        try
+        {
+            await Terminal5250.Program.AuthenticateAsync(clientStream, options, cancellation.Token);
+            await serverHandshake;
+            return true;
+        }
+        catch (AuthenticationException)
+        {
+            return false;
         }
         finally
         {

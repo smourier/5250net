@@ -19,7 +19,7 @@ namespace Terminal5250.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "18.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -106,6 +106,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to 5250 - {0}.
+        /// </summary>
+        internal static string ConsoleTitle {
+            get {
+                return ResourceManager.GetString("ConsoleTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to The host closed the connection..
         /// </summary>
         internal static string Disconnected {
@@ -128,12 +137,11 @@ namespace Terminal5250.Properties {
         ///Usage: 5250net HOST [options]
         ///  --port NUMBER       Default 23, or 992 with TLS.
         ///  --tls               Use direct TLS with certificate validation.
+        ///  --tls-certificate FILE  Trust a PEM or DER CA or self-signed server certificate.
+        ///  --tls-trust-all     Skip server certificate and hostname validation.
         ///  --device NAME       Request an IBM i display device (up to 10 characters).
         ///  --code-page NUMBER  EBCDIC code page, default 37.
-        ///  --keyboard TYPE     IBM keyboard type, default USB.
-        ///  --wide              Advertise a 27 by 132 color display.
-        ///  --help              Show this help.
-        ///  --version           Show the version.        /// [rest of string was truncated]&quot;;.
+        ///  --keyboard TYPE     IBM keyboard typ [rest of string was truncated]&quot;;.
         /// </summary>
         internal static string Help {
             get {
@@ -147,6 +155,222 @@ namespace Terminal5250.Properties {
         internal static string HostRequired {
             get {
                 return ResourceManager.GetString("HostRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Command-line arguments.
+        /// </summary>
+        internal static string HtmlArguments {
+            get {
+                return ResourceManager.GetString("HtmlArguments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Captured (UTC).
+        /// </summary>
+        internal static string HtmlCaptured {
+            get {
+                return ResourceManager.GetString("HtmlCaptured", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Code page.
+        /// </summary>
+        internal static string HtmlCodePage {
+            get {
+                return ResourceManager.GetString("HtmlCodePage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Requested device.
+        /// </summary>
+        internal static string HtmlDevice {
+            get {
+                return ResourceManager.GetString("HtmlDevice", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 5250 screen capture.
+        /// </summary>
+        internal static string HtmlFooterTitle {
+            get {
+                return ResourceManager.GetString("HtmlFooterTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keyboard.
+        /// </summary>
+        internal static string HtmlKeyboard {
+            get {
+                return ResourceManager.GetString("HtmlKeyboard", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Next.
+        /// </summary>
+        internal static string HtmlNext {
+            get {
+                return ResourceManager.GetString("HtmlNext", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not applicable.
+        /// </summary>
+        internal static string HtmlNotApplicable {
+            get {
+                return ResourceManager.GetString("HtmlNotApplicable", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Off.
+        /// </summary>
+        internal static string HtmlOff {
+            get {
+                return ResourceManager.GetString("HtmlOff", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On.
+        /// </summary>
+        internal static string HtmlOn {
+            get {
+                return ResourceManager.GetString("HtmlOn", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Port.
+        /// </summary>
+        internal static string HtmlPort {
+            get {
+                return ResourceManager.GetString("HtmlPort", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Previous.
+        /// </summary>
+        internal static string HtmlPrevious {
+            get {
+                return ResourceManager.GetString("HtmlPrevious", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Remote endpoint.
+        /// </summary>
+        internal static string HtmlRemoteEndpoint {
+            get {
+                return ResourceManager.GetString("HtmlRemoteEndpoint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Screen.
+        /// </summary>
+        internal static string HtmlScreen {
+            get {
+                return ResourceManager.GetString("HtmlScreen", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server.
+        /// </summary>
+        internal static string HtmlServer {
+            get {
+                return ResourceManager.GetString("HtmlServer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server selected.
+        /// </summary>
+        internal static string HtmlServerSelected {
+            get {
+                return ResourceManager.GetString("HtmlServerSelected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Session (process).
+        /// </summary>
+        internal static string HtmlSession {
+            get {
+                return ResourceManager.GetString("HtmlSession", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to System trust store.
+        /// </summary>
+        internal static string HtmlSystemTrust {
+            get {
+                return ResourceManager.GetString("HtmlSystemTrust", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TLS.
+        /// </summary>
+        internal static string HtmlTls {
+            get {
+                return ResourceManager.GetString("HtmlTls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TLS cipher.
+        /// </summary>
+        internal static string HtmlTlsCipher {
+            get {
+                return ResourceManager.GetString("HtmlTlsCipher", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TLS protocol.
+        /// </summary>
+        internal static string HtmlTlsProtocol {
+            get {
+                return ResourceManager.GetString("HtmlTlsProtocol", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Disabled (trust all).
+        /// </summary>
+        internal static string HtmlTrustAll {
+            get {
+                return ResourceManager.GetString("HtmlTrustAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unknown.
+        /// </summary>
+        internal static string HtmlUnknown {
+            get {
+                return ResourceManager.GetString("HtmlUnknown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Certificate validation.
+        /// </summary>
+        internal static string HtmlValidation {
+            get {
+                return ResourceManager.GetString("HtmlValidation", resourceCulture);
             }
         }
         
@@ -255,6 +479,24 @@ namespace Terminal5250.Properties {
         internal static string Status {
             get {
                 return ResourceManager.GetString("Status", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use either --tls-certificate or --tls-trust-all, not both..
+        /// </summary>
+        internal static string TlsOptionsExclusive {
+            get {
+                return ResourceManager.GetString("TlsOptionsExclusive", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to --tls-certificate and --tls-trust-all require --tls..
+        /// </summary>
+        internal static string TlsOptionsRequireTls {
+            get {
+                return ResourceManager.GetString("TlsOptionsRequireTls", resourceCulture);
             }
         }
         

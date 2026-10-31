@@ -1,58 +1,69 @@
 # 5250net
 
-An independent IBM i TN5250 terminal, written in C# as a standard .NET 10 console application.
-MIT licensed. `System.CommandLine` is the only NuGet package dependency. Native AOT publishing is enabled.
+An IBM i TN5250 terminal, written in C# as a standard .NET 10 console application.
+Native AOT publishing is enabled.
 
-This is an initial implementation of the core display protocol. It is not a port of another terminal emulator.
-It has not yet been validated against a live IBM i system and does not claim full ACS compatibility.
-
-## Build and run
-
-Install the .NET 10 SDK. From the repository root, run the following commands.
+## Run
 
 ```powershell
-dotnet build 5250net.slnx
-dotnet run --project 5250net -- --help
-dotnet run --project 5250net -- myibmi.example.com
-dotnet run --project 5250net -- myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
+5250net --help
+5250net -- myibmi.example.com
+5250net -- myibmi.example.com --tls --device MYDSP01 --code-page 297 --keyboard FAB --wide
 ```
 
+The console title is `5250 - HOST` during a connection, and the previous title is restored on exit.
+Unix title restoration uses the terminal's title stack when supported.
 The default port is 23 for Telnet and 992 for direct TLS. Set `--port` to use another port.
 The default EBCDIC code page is 37. The default keyboard type is `USB`.
 The keyboard type and code page must match the configuration of the IBM i virtual device.
 Use `--help` to see all options.
-
-On Linux, use the equivalent project paths `5250net` and `5250net.Tests` in these commands.
-
-## Native AOT
-
-Publish on the target operating system with its native compiler toolchain installed.
-Windows requires Visual Studio C++ build tools and a Windows SDK.
-Linux requires the .NET Native AOT prerequisites for the distribution, including a native compiler and zlib development files.
-
-```powershell
-dotnet publish 5250net -c Release -r win-x64
-dotnet publish 5250net -c Release -r linux-x64
-```
-
-The second command runs on Linux, using `5250net` as the project path.
-Cross-compiling Windows to Linux or Linux to Windows is not supported by Native AOT.
-The output is in the project's `bin\Release\net10.0\<rid>\publish` directory.
-No .NET runtime installation is required on the destination machine.
-Native operating-system dependencies, including the platform TLS implementation, are still required.
-For a framework-dependent build, pass `-p:PublishAot=false`.
 
 ## Connections and TLS
 
 The client connects directly to the IBM i Telnet service, including services used by IBM i Access Client Solutions (ACS).
 ACS is a separate client, not a server or transport. The application does not launch ACS or read ACS session files.
 
-`--tls` wraps the entire connection in TLS before Telnet negotiation. Certificate chain and host-name validation are mandatory.
-Install a private certificate authority in the operating-system trust store when needed.
-There is no certificate-validation bypass. Obsolete SSL protocols and Telnet STARTTLS are not implemented.
+`--tls` wraps the entire connection in TLS before Telnet negotiation, with certificate chain and host-name validation enabled by default.
+Use `--tls-certificate FILE` to trust a public CA or self-signed server certificate in PEM or DER format.
+This uses the supplied certificate as the trust anchor, keeps host-name and expiry checks, and skips revocation lookups.
+Use `--tls-trust-all` to disable certificate and host-name validation while keeping TLS encryption.
+These options require `--tls` and cannot be combined with each other.
+
+```powershell
+5250net localhost --tls --tls-certificate C:\Certificates\server.pem
+5250net localhost --tls --tls-trust-all
+```
+
+Obsolete SSL protocols and Telnet STARTTLS are not implemented.
 Plain Telnet sends the session, including sign-on input, without encryption.
 No passwords are accepted on the command line, stored in settings, or written to trace files.
 Sign on through the host's normal screen. Automatic sign-on and password substitutes are not implemented.
+
+## HTML screen capture
+
+Use `--capture-directory PATH` to save complete host screens as standalone UTF-8 HTML pages.
+
+```powershell
+5250net localhost --capture-directory C:\TerminalCaptures
+5250net localhost --tls --tls-trust-all --capture-directory C:\TerminalCaptures
+```
+
+Each process has its own session identifier, its process ID.
+Files are named `<process ID>_<six-digit screen number>_<UTC timestamp>.html`.
+For example, `1234_000001_20261031T1200001234567Z.html` is the first saved screen of process 1234.
+
+A page is saved after a complete host record updates the display and its visible contents or styling differ from the last saved screen.
+Typing, cursor-only changes, duplicate reloads, and changes confined to non-display contents do not create pages.
+Each page contains the full 80-column or 132-column screen with embedded colors, reverse image, and underlining.
+Unicode characters, spaces, and row boundaries are preserved. No external styles, fonts, or scripts are required.
+An HTML-only footer records the original argument tokens and connection metadata, including TLS status, validation mode, protocol, and cipher.
+It also shows the process ID, frame number, capture time, remote endpoint, device, keyboard, and code page.
+Previous and Next links use relative filenames, so the archive can be moved to another directory.
+The first frame has no Previous link. The latest frame has no Next link.
+Each new frame atomically updates the preceding file to add its Next link. Duplicate screens do not modify the navigation.
+
+The pages contain visible screen contents. Non-display field values are omitted from the HTML source.
+The directory is created if needed. A write failure reports an error and ends the connection through normal session cleanup.
 
 ## Keyboard and display
 
@@ -72,7 +83,11 @@ When the window is too small, resize it to resume input. Ctrl+Q remains availabl
 * PageUp and PageDown send Roll Down and Roll Up.
 * Alt+H sends Help, including the host error Help signal.
 * Ctrl+A sends Attention. Ctrl+S sends System Request.
-* Escape resets an input error. Ctrl+Q disconnects. Ctrl+C cancels the session.
+* Escape resets an input error. Ctrl+Q disconnects. Ctrl+C also disconnects.
+
+Disconnect drains incoming data before disposing the socket, including when a pending record is malformed.
+Exit briefly drains queued key events and restores the previous Ctrl+C input setting.
+The console API does not expose physical modifier-key release state, and the application does not synthesize global key releases.
 
 Some terminal hosts intercept function keys, Shift+function keys, or Ctrl+S.
 Configure the terminal host to pass these keys through. On Unix, disable software flow control if it captures Ctrl+S.
@@ -104,25 +119,6 @@ Advanced field validation has not been certified against physical 5250 behavior.
 Resequencing, self-check fields, DBCS, graphics, printer sessions, macros, mouse input, and ACS profile import are not implemented.
 IBM startup response records are recognized. Device-name collision retry and automatic sign-on are not implemented.
 The screen buffer and save records contain entered field data, including passwords, for as long as the protocol needs it.
-
-## Verification
-
-Run the protocol test executable.
-
-```powershell
-dotnet run --project 5250net.Tests -p:PublishAot=false
-```
-
-The tests use synthetic public-protocol fixtures and loopback servers.
-They exercise fields, keyboard editing, masks, reads, malformed records, screen save/restore, wide mode, negotiation, and Telnet over TLS.
-A self-signed certificate is accepted only by the test client inside the loopback fixture.
-The production client always validates server certificates.
-CI builds, tests, and publishes Native AOT on Windows and Linux.
-
-Before relying on this terminal, test sign-on, command entry, password fields, function keys, subfiles, and System Request against your host.
-Native AOT publishing, native executable smoke tests, and the protocol suite have been verified on Windows x64 and Ubuntu x64.
-The tests cover field rendering, default input cursor positioning, orderly Telnet and TLS shutdown, and argument parsing.
-They also cover rejection of untrusted TLS certificates and 1000 malformed screen fixtures.
 
 ## Protocol references
 

@@ -38,6 +38,7 @@ internal sealed class Display(Encoding encoding, bool wide)
     private byte[] _header = [];
     private int _address;
     private int _insertCursor;
+    private bool _insertCursorExplicit;
     private byte _readCommand;
     private byte _readControl1;
     private byte _readControl2;
@@ -48,6 +49,7 @@ internal sealed class Display(Encoding encoding, bool wide)
     private byte[]? _errorLine;
     private int _errorLineStart;
 
+    internal long _screenRevision { get; private set; }
     internal bool MessageWaiting => _message;
     internal bool FnsertMode => _insert;
 
@@ -61,6 +63,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
     internal List<byte[]> Apply(byte[] record)
     {
+        var screenUpdated = false;
         if (StartupResponse.Handle(record))
             return [];
 
@@ -106,6 +109,7 @@ internal sealed class Display(Encoding encoding, bool wide)
             {
                 case DisplayCommand.ClearUnit:
                     Clear(false);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.ClearUnitAlternate:
@@ -113,6 +117,7 @@ internal sealed class Display(Encoding encoding, bool wide)
                         throw new InvalidDataException(Resources.BadRecord);
 
                     Clear(true);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.ClearFormatTable:
@@ -120,20 +125,24 @@ internal sealed class Display(Encoding encoding, bool wide)
                     _header = [];
                     _readCommand = 0;
                     _insertCursor = 0;
+                    _insertCursorExplicit = false;
                     _insert = false;
                     Locked = true;
                     break;
 
                 case DisplayCommand.Roll:
                     Roll(data, ref i);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.WriteErrorCode:
                     WriteError(data, ref i);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.WriteToDisplay:
                     WriteDisplay(data, ref i);
+                    screenUpdated = true;
                     break;
 
                 case DisplayCommand.ReadInputFields:
@@ -150,6 +159,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
                 case DisplayCommand.RestoreScreen:
                     Restore(data[i..]);
+                    screenUpdated = true;
                     i = data.Length;
                     break;
 
@@ -173,6 +183,11 @@ internal sealed class Display(Encoding encoding, bool wide)
                 default:
                     throw new InvalidDataException(string.Format(CultureInfo.InvariantCulture, Resources.UnsupportedCommand, command));
             }
+        }
+
+        if (screenUpdated)
+        {
+            _screenRevision++;
         }
 
         return replies;
@@ -236,6 +251,7 @@ internal sealed class Display(Encoding encoding, bool wide)
         _header = [];
         Cursor = 0;
         _insertCursor = 0;
+        _insertCursorExplicit = false;
         _address = 0;
         _readCommand = 0;
         Locked = true;
@@ -252,6 +268,8 @@ internal sealed class Display(Encoding encoding, bool wide)
         _address = 0;
         _previousFieldEnd = -1;
         _explicitAddress = false;
+        var insertCursorWritten = false;
+        int? moveCursor = null;
         while (i < data.Length && data[i] != _escape)
         {
             var order = Take(data, ref i);
@@ -261,6 +279,12 @@ internal sealed class Display(Encoding encoding, bool wide)
                     var count = Take(data, ref i);
                     if (count == 0 || count == 255 || i + count > data.Length)
                         throw new InvalidDataException(Resources.BadRecord);
+
+                    if (!insertCursorWritten)
+                    {
+                        _insertCursor = 0;
+                        _insertCursorExplicit = false;
+                    }
 
                     _header = data.Slice(i, count).ToArray();
                     i += count;
@@ -300,9 +324,16 @@ internal sealed class Display(Encoding encoding, bool wide)
                     break;
 
                 case DisplayOrder.InsertCursor:
-                case DisplayOrder.MoveCursor:
                     _insertCursor = Address(data, ref i);
+                    _insertCursorExplicit = true;
+                    insertCursorWritten = true;
+                    moveCursor = null;
                     Cursor = _insertCursor;
+                    break;
+
+                case DisplayOrder.MoveCursor:
+                    Cursor = Address(data, ref i);
+                    moveCursor = Cursor;
                     break;
 
                 case DisplayOrder.StartOfField:
@@ -323,6 +354,10 @@ internal sealed class Display(Encoding encoding, bool wide)
         }
 
         Control2(cc2);
+        if (moveCursor.HasValue)
+        {
+            Cursor = moveCursor.Value;
+        }
     }
 
     private void StartField(ReadOnlySpan<byte> data, ref int i)
@@ -379,10 +414,6 @@ internal sealed class Display(Encoding encoding, bool wide)
             {
                 _fields.Add(new InputField(start, length, first, second, transparent));
                 _fields.Sort((left, right) => left.Start.CompareTo(right.Start));
-                if (_fields.Count == 1 && _insertCursor == 0)
-                {
-                    _insertCursor = start;
-                }
             }
 
             _cells[(start + length) % _cells.Length] = _normalAttribute;
@@ -391,6 +422,11 @@ internal sealed class Display(Encoding encoding, bool wide)
         if (_address >= 0)
         {
             _cells[_address] = attribute;
+        }
+
+        if (!_insertCursorExplicit)
+        {
+            _insertCursor = _fields.FirstOrDefault(field => !field.Bypass)?.Start ?? 0;
         }
 
         _address = start;
@@ -435,6 +471,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
             Locked = false;
             InputError = false;
+            _errorLine = null;
         }
 
         if ((control & 2) != 0)
@@ -458,6 +495,7 @@ internal sealed class Display(Encoding encoding, bool wide)
         writer.Write(Columns);
         writer.Write(Cursor);
         writer.Write(_insertCursor);
+        writer.Write(_insertCursorExplicit);
         writer.Write(Locked);
         writer.Write(_insert);
         writer.Write(InputError);
@@ -500,6 +538,7 @@ internal sealed class Display(Encoding encoding, bool wide)
 
         var cursor = reader.ReadInt32();
         var insertCursor = reader.ReadInt32();
+        var insertCursorExplicit = reader.ReadBoolean();
         if (cursor < 0 || cursor >= rows * columns || insertCursor < 0 || insertCursor >= rows * columns)
             throw new InvalidDataException(Resources.BadAddress);
 
@@ -549,6 +588,7 @@ internal sealed class Display(Encoding encoding, bool wide)
         Columns = columns;
         Cursor = cursor;
         _insertCursor = insertCursor;
+        _insertCursorExplicit = insertCursorExplicit;
         Locked = locked;
         _insert = insert;
         InputError = inputError;
@@ -611,7 +651,8 @@ internal sealed class Display(Encoding encoding, bool wide)
 
     internal byte[]? Key(ConsoleKeyInfo key)
     {
-        var control = (key.Modifiers & ConsoleModifiers.Control) != 0;
+        var alt = (key.Modifiers & ConsoleModifiers.Alt) != 0;
+        var control = (key.Modifiers & ConsoleModifiers.Control) != 0 && !alt;
         var shift = (key.Modifiers & ConsoleModifiers.Shift) != 0;
         if (control && key.Key is ConsoleKey.A or ConsoleKey.S)
             return GdsRecord.Create([], flags: key.Key == ConsoleKey.A ? (byte)0x40 : (byte)4);
@@ -646,7 +687,7 @@ internal sealed class Display(Encoding encoding, bool wide)
             return null;
         }
 
-        if (InputError && key.Key == ConsoleKey.H && (key.Modifiers & ConsoleModifiers.Alt) != 0 && _errorLine != null)
+        if (InputError && key.Key == ConsoleKey.H && alt && (key.Modifiers & ConsoleModifiers.Control) == 0 && _errorLine != null)
         {
             var error = new byte[2];
             for (var i = 0; i < 4; i++)
@@ -666,7 +707,7 @@ internal sealed class Display(Encoding encoding, bool wide)
             ConsoleKey.Enter => _enterAid,
             ConsoleKey.PageUp => _pageUpAid,
             ConsoleKey.PageDown => _pageDownAid,
-            ConsoleKey.H when (key.Modifiers & ConsoleModifiers.Alt) != 0 => _helpAid,
+            ConsoleKey.H when alt && (key.Modifiers & ConsoleModifiers.Control) == 0 => _helpAid,
             _ => 0,
         };
 

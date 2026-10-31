@@ -2,6 +2,7 @@ namespace Terminal5250;
 
 internal static class Program
 {
+    private const string _serverAuthenticationOid = "1.3.6.1.5.5.7.3.1";
     private const string _ebcdicProbe = " A0";
     private static readonly byte[] _ebcdicSignature = [0x40, 0xC1, 0xF0];
 
@@ -67,7 +68,7 @@ internal static class Program
             {
                 try
                 {
-                    await AuthenticateAsync(secure, options.Host, connectionCancellation.Token);
+                    await AuthenticateAsync(secure, options, connectionCancellation.Token);
                 }
                 catch (OperationCanceledException) when (!cancellation.IsCancellationRequested)
                 {
@@ -78,15 +79,20 @@ internal static class Program
             var transport = new TelnetTransport(stream, options);
             var display = new Display(encoding, options.Wide);
             using var renderer = new ConsoleRenderer(options.Host);
-            await RunAsync(client, stream, transport, display, renderer, cancellation);
+            await using var input = new ConsoleInput();
+            var capture = options._captureDirectory == null ? null
+                : new HtmlScreenCapture(options._captureDirectory, options, args,
+                    client.Client.RemoteEndPoint?.ToString(), stream as SslStream);
+            await RunAsync(client, stream, transport, display, renderer, capture, cancellation);
             return 0;
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
             return 0;
         }
-        catch (Exception exception) when (exception is IOException or SocketException or AuthenticationException or
-            ArgumentException or InvalidOperationException or TimeoutException or NotSupportedException)
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SocketException or
+            AuthenticationException or CryptographicException or ArgumentException or InvalidOperationException or
+            TimeoutException or NotSupportedException)
         {
             Console.Error.WriteLine(string.Format(CultureInfo.CurrentCulture, Resources.Error, exception.Message));
             return 1;
@@ -97,19 +103,42 @@ internal static class Program
         }
     }
 
-    internal static Task AuthenticateAsync(SslStream stream, string host, CancellationToken cancellation)
+    internal static async Task AuthenticateAsync(SslStream stream, Options options, CancellationToken cancellation)
     {
-        return stream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
+        using var certificate = options._tlsCertificate == null
+            ? null
+            : X509CertificateLoader.LoadCertificateFromFile(options._tlsCertificate.FullName);
+        var authentication = new SslClientAuthenticationOptions
         {
-            TargetHost = host,
+            TargetHost = options.Host,
             EnabledSslProtocols = SslProtocols.None,
-            CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online,
-        }, cancellation);
+            CertificateRevocationCheckMode = X509RevocationMode.Online,
+        };
+
+        if (options._tlsTrustAll)
+        {
+            authentication.RemoteCertificateValidationCallback = static (_, _, _, _) => true;
+        }
+        else if (certificate != null)
+        {
+            var policy = new X509ChainPolicy
+            {
+                TrustMode = X509ChainTrustMode.CustomRootTrust,
+                RevocationMode = X509RevocationMode.NoCheck,
+            };
+
+            policy.CustomTrustStore.Add(certificate);
+            policy.ApplicationPolicy.Add(new Oid(_serverAuthenticationOid));
+            authentication.CertificateChainPolicy = policy;
+        }
+
+        await stream.AuthenticateAsClientAsync(authentication, cancellation);
     }
 
     internal static async Task DisconnectAsync(TcpClient client, Stream stream, Task<byte[]?> pending)
     {
         using var timeout = new CancellationTokenSource(_disconnectTimeout);
+        Task<int>? draining = null;
         try
         {
             if (stream is SslStream secure)
@@ -118,11 +147,20 @@ internal static class Program
             }
 
             client.Client.Shutdown(SocketShutdown.Send);
-            await pending.WaitAsync(timeout.Token);
-            var buffer = new byte[_drainBufferLength];
-            while (await stream.ReadAsync(buffer).AsTask().WaitAsync(timeout.Token) != 0)
+            try
+            {
+                await pending.WaitAsync(timeout.Token);
+            }
+            catch (Exception exception) when (exception is IOException or InvalidDataException or SocketException)
             {
             }
+
+            var buffer = new byte[_drainBufferLength];
+            do
+            {
+                draining = stream.ReadAsync(buffer).AsTask();
+            }
+            while (await draining.WaitAsync(timeout.Token) != 0);
         }
         catch (Exception exception) when (exception is OperationCanceledException or IOException or SocketException or ObjectDisposedException)
         {
@@ -136,15 +174,25 @@ internal static class Program
             catch (Exception exception) when (exception is SocketException or ObjectDisposedException)
             {
             }
+
+            if (draining != null)
+            {
+                try
+                {
+                    await draining;
+                }
+                catch (Exception exception) when (exception is IOException or SocketException or ObjectDisposedException)
+                {
+                }
+            }
         }
     }
 
     private static async Task RunAsync(TcpClient client, Stream stream, TelnetTransport transport, Display display, ConsoleRenderer renderer,
-        CancellationTokenSource cancellation)
+        HtmlScreenCapture? capture, CancellationTokenSource cancellation)
     {
-        var pending = transport.ReadAsync(cancellation.Token);
+        var pending = transport.ReadAsync(CancellationToken.None);
         var dirty = true;
-        var disconnect = false;
         try
         {
             while (!cancellation.IsCancellationRequested)
@@ -160,18 +208,16 @@ internal static class Program
                         await transport.WriteRecordAsync(reply, cancellation.Token);
                     }
 
-                    pending = transport.ReadAsync(cancellation.Token);
+                    capture?.Save(display);
+                    pending = transport.ReadAsync(CancellationToken.None);
                     dirty = true;
                 }
 
                 if (Console.KeyAvailable)
                 {
                     var key = Console.ReadKey(true);
-                    if (key.Key == ConsoleKey.Q && (key.Modifiers & ConsoleModifiers.Control) != 0)
-                    {
-                        disconnect = true;
+                    if (ConsoleInput.IsQuit(key))
                         return;
-                    }
 
                     if (ConsoleRenderer.Fits(display))
                     {
@@ -197,18 +243,14 @@ internal static class Program
         finally
         {
 
-            // canceling a socket read can reset the connection, so finish the connection before canceling its reader.
-            if (disconnect)
-            {
-                await DisconnectAsync(client, stream, pending);
-            }
-
+            // the peer may still be sending a screen, so drain it before releasing the connection.
+            await DisconnectAsync(client, stream, pending);
             cancellation.Cancel();
             try
             {
                 await pending;
             }
-            catch (Exception exception) when (exception is OperationCanceledException or IOException or SocketException)
+            catch (Exception exception) when (exception is OperationCanceledException or IOException or InvalidDataException or SocketException)
             {
             }
         }

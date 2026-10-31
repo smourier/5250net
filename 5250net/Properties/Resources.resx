@@ -17,10 +17,13 @@
 Usage: 5250net HOST [options]
   --port NUMBER       Default 23, or 992 with TLS.
   --tls               Use direct TLS with certificate validation.
+  --tls-certificate FILE  Trust a PEM or DER CA or self-signed server certificate.
+  --tls-trust-all     Skip server certificate and hostname validation.
   --device NAME       Request an IBM i display device (up to 10 characters).
   --code-page NUMBER  EBCDIC code page, default 37.
   --keyboard TYPE     IBM keyboard type, default USB.
   --wide              Advertise a 27 by 132 color display.
+  --capture-directory PATH  Save changed host screens as standalone HTML pages.
   --help              Show this help.
   --version           Show the version.
 Keys: Enter, F1 through F12, Shift+F1 through Shift+F12 for F13 through F24.
@@ -110,5 +113,86 @@ Escape resets an input error. Ctrl+Q disconnects.
   </data>
   <data name="StartupFailed" xml:space="preserve">
     <value>IBM i session startup failed with response code {0}.</value>
+  </data>
+  <data name="ConsoleTitle" xml:space="preserve">
+    <value>5250 - {0}</value>
+  </data>
+  <data name="TlsOptionsRequireTls" xml:space="preserve">
+    <value>--tls-certificate and --tls-trust-all require --tls.</value>
+  </data>
+  <data name="TlsOptionsExclusive" xml:space="preserve">
+    <value>Use either --tls-certificate or --tls-trust-all, not both.</value>
+  </data>
+  <data name="HtmlFooterTitle" xml:space="preserve">
+    <value>5250 screen capture</value>
+  </data>
+  <data name="HtmlServer" xml:space="preserve">
+    <value>Server</value>
+  </data>
+  <data name="HtmlPort" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="HtmlRemoteEndpoint" xml:space="preserve">
+    <value>Remote endpoint</value>
+  </data>
+  <data name="HtmlTls" xml:space="preserve">
+    <value>TLS</value>
+  </data>
+  <data name="HtmlOn" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="HtmlOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="HtmlNotApplicable" xml:space="preserve">
+    <value>Not applicable</value>
+  </data>
+  <data name="HtmlValidation" xml:space="preserve">
+    <value>Certificate validation</value>
+  </data>
+  <data name="HtmlTrustAll" xml:space="preserve">
+    <value>Disabled (trust all)</value>
+  </data>
+  <data name="HtmlSystemTrust" xml:space="preserve">
+    <value>System trust store</value>
+  </data>
+  <data name="HtmlTlsProtocol" xml:space="preserve">
+    <value>TLS protocol</value>
+  </data>
+  <data name="HtmlTlsCipher" xml:space="preserve">
+    <value>TLS cipher</value>
+  </data>
+  <data name="HtmlCodePage" xml:space="preserve">
+    <value>Code page</value>
+  </data>
+  <data name="HtmlKeyboard" xml:space="preserve">
+    <value>Keyboard</value>
+  </data>
+  <data name="HtmlDevice" xml:space="preserve">
+    <value>Requested device</value>
+  </data>
+  <data name="HtmlServerSelected" xml:space="preserve">
+    <value>Server selected</value>
+  </data>
+  <data name="HtmlUnknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="HtmlSession" xml:space="preserve">
+    <value>Session (process)</value>
+  </data>
+  <data name="HtmlScreen" xml:space="preserve">
+    <value>Screen</value>
+  </data>
+  <data name="HtmlCaptured" xml:space="preserve">
+    <value>Captured (UTC)</value>
+  </data>
+  <data name="HtmlArguments" xml:space="preserve">
+    <value>Command-line arguments</value>
+  </data>
+  <data name="HtmlPrevious" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="HtmlNext" xml:space="preserve">
+    <value>Next</value>
   </data>
 </root>

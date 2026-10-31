@@ -21,6 +21,9 @@ internal sealed class ConsoleRenderer : IDisposable
     private readonly ConsoleColor _foreground;
     private readonly ConsoleColor _background;
     private readonly Encoding _encoding;
+    private readonly string? _title;
+    private const string _saveTitle = "\u001b[22;0t";
+    private const string _restoreTitle = "\u001b[23;0t";
     private int _width;
     private int _height;
     private static readonly ConsoleColor[] _colors =
@@ -37,6 +40,17 @@ internal sealed class ConsoleRenderer : IDisposable
         _encoding = Console.OutputEncoding;
         Console.OutputEncoding = new UTF8Encoding(false);
         Console.Clear();
+        var title = string.Format(CultureInfo.InvariantCulture, Resources.ConsoleTitle, host);
+        if (OperatingSystem.IsWindows())
+        {
+            _title = Console.Title;
+            Console.Title = title;
+        }
+        else if (_ansi)
+        {
+            Console.Write(_saveTitle);
+            Console.Title = title;
+        }
     }
 
     internal bool Resized() => Console.WindowWidth != _width || Console.WindowHeight != _height;
@@ -196,10 +210,30 @@ internal sealed class ConsoleRenderer : IDisposable
 
     public void Dispose()
     {
-        Console.ForegroundColor = _foreground;
-        Console.BackgroundColor = _background;
-        Console.CursorVisible = true;
-        Console.Clear();
-        Console.OutputEncoding = _encoding;
+        try
+        {
+            Console.ForegroundColor = _foreground;
+            Console.BackgroundColor = _background;
+            Console.CursorVisible = true;
+            Console.Clear();
+        }
+        finally
+        {
+            try
+            {
+                if (OperatingSystem.IsWindows())
+                {
+                    Console.Title = _title ?? string.Empty;
+                }
+                else if (_ansi)
+                {
+                    Console.Write(_restoreTitle);
+                }
+            }
+            finally
+            {
+                Console.OutputEncoding = _encoding;
+            }
+        }
     }
 }

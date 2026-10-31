@@ -25,7 +25,11 @@
 		<Using Include="System.Net.Security" />
 		<Using Include="System.Net.Sockets" />
 		<Using Include="System.Security.Authentication" />
+		<Using Include="System.Security.Cryptography" />
+		<Using Include="System.Security.Cryptography.X509Certificates" />
 		<Using Include="System.Text" />
+		<Using Include="System.Text.Encodings.Web" />
+		<Using Include="System.Text.Unicode" />
 		<Using Include="System.Threading" />
 		<Using Include="System.Threading.Tasks" />
 		<Using Include="Terminal5250.Properties" />
