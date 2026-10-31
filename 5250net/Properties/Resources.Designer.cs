@@ -159,11 +159,38 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Action.
+        /// </summary>
+        internal static string HtmlAction {
+            get {
+                return ResourceManager.GetString("HtmlAction", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Alt+{0}.
+        /// </summary>
+        internal static string HtmlAltKey {
+            get {
+                return ResourceManager.GetString("HtmlAltKey", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Command-line arguments.
         /// </summary>
         internal static string HtmlArguments {
             get {
                 return ResourceManager.GetString("HtmlArguments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Screen before leaving.
+        /// </summary>
+        internal static string HtmlBeforeLeaving {
+            get {
+                return ResourceManager.GetString("HtmlBeforeLeaving", resourceCulture);
             }
         }
         
@@ -177,11 +204,29 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Capture.
+        /// </summary>
+        internal static string HtmlCaptureReason {
+            get {
+                return ResourceManager.GetString("HtmlCaptureReason", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Code page.
         /// </summary>
         internal static string HtmlCodePage {
             get {
                 return ResourceManager.GetString("HtmlCodePage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ctrl+{0}.
+        /// </summary>
+        internal static string HtmlControlKey {
+            get {
+                return ResourceManager.GetString("HtmlControlKey", resourceCulture);
             }
         }
         
@@ -204,11 +249,56 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Screen {0}, {1}, {2}, {3}.
+        /// </summary>
+        internal static string HtmlFrameLabel {
+            get {
+                return ResourceManager.GetString("HtmlFrameLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server update.
+        /// </summary>
+        internal static string HtmlHostUpdate {
+            get {
+                return ResourceManager.GetString("HtmlHostUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Session index.
+        /// </summary>
+        internal static string HtmlIndex {
+            get {
+                return ResourceManager.GetString("HtmlIndex", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 5250 session captures.
+        /// </summary>
+        internal static string HtmlIndexTitle {
+            get {
+                return ResourceManager.GetString("HtmlIndexTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Keyboard.
         /// </summary>
         internal static string HtmlKeyboard {
             get {
                 return ResourceManager.GetString("HtmlKeyboard", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Menu choice {0}, Enter.
+        /// </summary>
+        internal static string HtmlMenuChoice {
+            get {
+                return ResourceManager.GetString("HtmlMenuChoice", resourceCulture);
             }
         }
         
@@ -267,6 +357,15 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Screen reloaded.
+        /// </summary>
+        internal static string HtmlReloaded {
+            get {
+                return ResourceManager.GetString("HtmlReloaded", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Remote endpoint.
         /// </summary>
         internal static string HtmlRemoteEndpoint {
@@ -281,6 +380,15 @@ namespace Terminal5250.Properties {
         internal static string HtmlScreen {
             get {
                 return ResourceManager.GetString("HtmlScreen", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Captured screens.
+        /// </summary>
+        internal static string HtmlScreenCount {
+            get {
+                return ResourceManager.GetString("HtmlScreenCount", resourceCulture);
             }
         }
         
@@ -308,6 +416,33 @@ namespace Terminal5250.Properties {
         internal static string HtmlSession {
             get {
                 return ResourceManager.GetString("HtmlSession", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Session started (UTC).
+        /// </summary>
+        internal static string HtmlSessionStarted {
+            get {
+                return ResourceManager.GetString("HtmlSessionStarted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Shift+{0}.
+        /// </summary>
+        internal static string HtmlShiftKey {
+            get {
+                return ResourceManager.GetString("HtmlShiftKey", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Screen on startup.
+        /// </summary>
+        internal static string HtmlStartup {
+            get {
+                return ResourceManager.GetString("HtmlStartup", resourceCulture);
             }
         }
         

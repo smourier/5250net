@@ -1,4 +1,4 @@
-# 5250net
+﻿# 5250net
 
 An IBM i TN5250 terminal, written in C# as a standard .NET 10 console application.
 Native AOT publishing is enabled.
@@ -49,7 +49,9 @@ Use `--capture-directory PATH` to save complete host screens as standalone UTF-8
 ```
 
 Each process has its own session identifier, its process ID.
-Files are named `<process ID>_<six-digit screen number>_<UTC timestamp>.html`.
+Each session writes to a separate `<process ID>_<session-start UTC timestamp>` subdirectory of the capture directory.
+The session directory contains `index.html` and all captured frame pages.
+Frame files are named `<process ID>_<six-digit screen number>_<UTC timestamp>.html`.
 For example, `1234_000001_20261031T1200001234567Z.html` is the first saved screen of process 1234.
 
 A page is saved after a complete host record updates the display and its visible contents or styling differ from the last saved screen.
@@ -60,10 +62,26 @@ An HTML-only footer records the original argument tokens and connection metadata
 It also shows the process ID, frame number, capture time, remote endpoint, device, keyboard, and code page.
 Previous and Next links use relative filenames, so the archive can be moved to another directory.
 The first frame has no Previous link. The latest frame has no Next link.
+Every frame also links back to the session index.
+The index has a contrasting slate background, while embedded screens keep their black background.
+The index has a session header with the connection details and command-line arguments, links to all frames, and lazy-loaded embedded screens.
+Embedded screens hide their individual footers. Opening a frame's link shows its normal footer and navigation.
+The index is updated atomically when a new frame is saved. Reload an open index page to see new entries.
 Each new frame atomically updates the preceding file to add its Next link. Duplicate screens do not modify the navigation.
 
 The pages contain visible screen contents. Non-display field values are omitted from the HTML source.
 The directory is created if needed. A write failure reports an error and ends the connection through normal session cleanup.
+
+Capture pages identify the startup screen, reloaded screens, and screens saved before leaving.
+Before submitting an action or ending the session, the current screen is saved only if its visible content differs from the last capture.
+Screen footers and index headings identify the submitted action, such as Enter or F3. Form values are not included in action labels.
+Enter includes a numeric menu choice when exactly one modified editable field contains only digits.
+A sole editable field containing digits also qualifies when its modified flag is clear.
+This includes row selections on lists with multiple input fields.
+Masked fields and transparent fields are excluded from numeric action labels.
+Each screen shows its action as keyboard badges in the footer and beside its preview in the session index.
+Numeric choices show separate badges, for example `2` followed by `Enter`.
+Capture directories are created only when the first screen is written.
 
 ## Keyboard and display
 

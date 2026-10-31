@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
   <resheader name="resmimetype">
     <value>text/microsoft-resx</value>
@@ -194,5 +194,50 @@ Escape resets an input error. Ctrl+Q disconnects.
   </data>
   <data name="HtmlNext" xml:space="preserve">
     <value>Next</value>
+  </data>
+  <data name="HtmlIndex" xml:space="preserve">
+    <value>Session index</value>
+  </data>
+  <data name="HtmlIndexTitle" xml:space="preserve">
+    <value>5250 session captures</value>
+  </data>
+  <data name="HtmlSessionStarted" xml:space="preserve">
+    <value>Session started (UTC)</value>
+  </data>
+  <data name="HtmlScreenCount" xml:space="preserve">
+    <value>Captured screens</value>
+  </data>
+  <data name="HtmlFrameLabel" xml:space="preserve">
+    <value>Screen {0}, {1}, {2}, {3}</value>
+  </data>
+  <data name="HtmlStartup" xml:space="preserve">
+    <value>Screen on startup</value>
+  </data>
+  <data name="HtmlBeforeLeaving" xml:space="preserve">
+    <value>Screen before leaving</value>
+  </data>
+  <data name="HtmlReloaded" xml:space="preserve">
+    <value>Screen reloaded</value>
+  </data>
+  <data name="HtmlCaptureReason" xml:space="preserve">
+    <value>Capture</value>
+  </data>
+  <data name="HtmlAction" xml:space="preserve">
+    <value>Action</value>
+  </data>
+  <data name="HtmlHostUpdate" xml:space="preserve">
+    <value>Server update</value>
+  </data>
+  <data name="HtmlControlKey" xml:space="preserve">
+    <value>Ctrl+{0}</value>
+  </data>
+  <data name="HtmlAltKey" xml:space="preserve">
+    <value>Alt+{0}</value>
+  </data>
+  <data name="HtmlShiftKey" xml:space="preserve">
+    <value>Shift+{0}</value>
+  </data>
+  <data name="HtmlMenuChoice" xml:space="preserve">
+    <value>Menu choice {0}, Enter</value>
   </data>
 </root>

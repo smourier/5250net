@@ -1,4 +1,4 @@
-namespace Terminal5250;
+﻿namespace Terminal5250;
 
 internal static class Program
 {
@@ -217,13 +217,19 @@ internal static class Program
                 {
                     var key = Console.ReadKey(true);
                     if (ConsoleInput.IsQuit(key))
+                    {
+                        capture?.RecordAction(key, display);
                         return;
+                    }
 
                     if (ConsoleRenderer.Fits(display))
                     {
+                        var action = capture == null ? null : HtmlScreenCapture.DescribeAction(key, display);
                         var record = display.Key(key);
                         if (record != null)
                         {
+                            capture?.RecordAction(action!);
+                            capture?.Save(display, true);
                             await transport.WriteRecordAsync(record, cancellation.Token);
                         }
                     }
@@ -242,16 +248,22 @@ internal static class Program
         }
         finally
         {
-
-            // the peer may still be sending a screen, so drain it before releasing the connection.
-            await DisconnectAsync(client, stream, pending);
-            cancellation.Cancel();
             try
             {
-                await pending;
+                capture?.Save(display, true);
             }
-            catch (Exception exception) when (exception is OperationCanceledException or IOException or InvalidDataException or SocketException)
+            finally
             {
+                // the peer may still be sending a screen, so drain it before releasing the connection.
+                await DisconnectAsync(client, stream, pending);
+                cancellation.Cancel();
+                try
+                {
+                    await pending;
+                }
+                catch (Exception exception) when (exception is OperationCanceledException or IOException or InvalidDataException or SocketException)
+                {
+                }
             }
         }
     }

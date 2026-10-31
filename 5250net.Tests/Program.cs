@@ -1,4 +1,4 @@
-namespace Terminal5250.Tests;
+﻿namespace Terminal5250.Tests;
 
 internal static class Program
 {
@@ -13,6 +13,7 @@ internal static class Program
         ScreenAndInput();
         FunctionMasks();
         ReadModes();
+        ReadOnlyEnter();
         Malformed();
         SaveRestore();
         WideAndQuery();
@@ -195,8 +196,10 @@ internal static class Program
             string[] arguments = ["<host&>", "--tls", "--tls-trust-all", "--capture-directory", "captures with spaces", "arg<&é>"];
 
             var capture = new HtmlScreenCapture(directory, options, arguments, "127.0.0.1:2323");
+            Check(!Directory.Exists(directory), nameof(HtmlCapture));
             var display = new Display(_encoding, true);
             Check(capture.Save(display) == null, nameof(HtmlCapture));
+            Check(!Directory.Exists(directory), nameof(HtmlCapture));
             var text = _encoding.GetBytes("é <b>&");
             var secret = _encoding.GetBytes("SECRET");
             var record = GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
@@ -206,11 +209,23 @@ internal static class Program
                 0x13, 2, 10, 4, 0x52, 0, 0], 3);
             display.Apply(record);
             var first = capture.Save(display)!;
+            var sessionDirectory = Path.GetDirectoryName(first)!;
+            var indexPath = Path.Combine(sessionDirectory, "index.html");
+            Check(Path.GetDirectoryName(sessionDirectory) == directory, nameof(HtmlCapture));
+            Check(File.Exists(indexPath), nameof(HtmlCapture));
+            var index = File.ReadAllText(indexPath);
+            Check(index.Contains("<body class=\"capture-gallery\">", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("<header", StringComparison.Ordinal) && !index.Contains("<footer", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains(Path.GetFileName(first) + "#screen", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("loading=\"lazy\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("arg&lt;&amp;é&gt;", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!index.Contains("SECRET", StringComparison.Ordinal), nameof(HtmlCapture));
             var name = Path.GetFileName(first);
             var expectedPrefix = Environment.ProcessId.ToString(CultureInfo.InvariantCulture) + "_000001_";
             Check(name.StartsWith(expectedPrefix, StringComparison.Ordinal), nameof(HtmlCapture));
             Check(name.EndsWith("Z.html", StringComparison.Ordinal), nameof(HtmlCapture));
             var html = File.ReadAllText(first, Encoding.UTF8);
+            Check(!html.Contains("<body class=\"capture-gallery\">", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(html.Contains("é &lt;b&gt;&amp;", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(html.Contains("&lt;host&amp;&gt;", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(!html.Contains("SECRET", StringComparison.Ordinal), nameof(HtmlCapture));
@@ -249,7 +264,7 @@ internal static class Program
             display.Apply(GdsRecord.Create([4, 0x20, 0]));
             var wide = capture.Save(display)!;
             Check(File.ReadAllText(wide).Contains("data-rows=\"27\" data-columns=\"132\"", StringComparison.Ordinal), nameof(HtmlCapture));
-            Check(Directory.GetFiles(directory).Length == 3, nameof(HtmlCapture));
+            Check(Directory.GetFiles(sessionDirectory).Length == 4, nameof(HtmlCapture));
             secondHtml = File.ReadAllText(second);
             var wideHtml = File.ReadAllText(wide);
             Check(secondHtml.Contains("rel=\"next\" href=\"" + Path.GetFileName(wide) + "\"", StringComparison.Ordinal), nameof(HtmlCapture));
@@ -257,6 +272,86 @@ internal static class Program
             Check(!wideHtml.Contains("rel=\"next\"", StringComparison.Ordinal), nameof(HtmlCapture));
             Check(File.ReadAllText(first) == firstUpdated, nameof(HtmlCapture));
             Check(capture.Save(display) == null && File.ReadAllText(second) == secondHtml, nameof(HtmlCapture));
+            index = File.ReadAllText(indexPath);
+            Check(index.Split("<iframe", StringSplitOptions.None).Length - 1 == 3, nameof(HtmlCapture));
+            Check(index.Contains(Path.GetFileName(first) + "#screen", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains(Path.GetFileName(second) + "#screen", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains(Path.GetFileName(wide) + "#screen", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("--screen-columns:132;--screen-rows:27", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(wideHtml.Contains(".screen:target + .capture-footer{display:none}", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(wideHtml.Contains("rel=\"index\" href=\"index.html\"", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(capture.Save(display) == null && File.ReadAllText(indexPath) == index, nameof(HtmlCapture));
+            var other = new HtmlScreenCapture(directory, Options.Parse(["other.example"]), ["other.example"]);
+            var otherFrame = other.Save(display)!;
+            var otherIndex = Path.Combine(Path.GetDirectoryName(otherFrame)!, "index.html");
+            Check(otherIndex != indexPath && Directory.GetDirectories(directory).Length == 2, nameof(HtmlCapture));
+            Check(!File.ReadAllText(otherIndex).Contains(Path.GetFileName(first), StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath) == index, nameof(HtmlCapture));
+            Check(html.Contains("Screen on startup", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(capture.Save(display, true) == null, nameof(HtmlCapture));
+            display.Apply(record);
+            capture.Save(display);
+            display.Key(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
+            Check(capture.Save(display) == null, nameof(HtmlCapture));
+            capture.RecordAction(Key(ConsoleKey.Enter));
+            var leaving = capture.Save(display, true)!;
+            var leavingHtml = File.ReadAllText(leaving);
+            Check(leavingHtml.Contains("Screen before leaving", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(leavingHtml.Contains("<kbd>Enter</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(!leavingHtml.Contains("<dd>X</dd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(capture.Save(display, true) == null, nameof(HtmlCapture));
+            capture.RecordAction(Key(ConsoleKey.F3));
+            display.Apply(record);
+            var reloaded = capture.Save(display)!;
+            Check(File.ReadAllText(reloaded).Contains("<kbd>F3</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            index = File.ReadAllText(indexPath);
+            Check(index.Contains("Screen before leaving, Enter", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(index.Contains("Screen reloaded, F3", StringComparison.Ordinal), nameof(HtmlCapture));
+            var menu = new Display(_encoding, false);
+            menu.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+                0x11, 2, 9, 0x1D, 0x40, 0, 0x24, 0, 5, 0x13, 2, 10, 4, 0x52, 0, 8], 3));
+            menu.Key(new ConsoleKeyInfo('1', ConsoleKey.D1, false, false, false));
+            var choice = HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), menu);
+            Check(choice == "Menu choice 1, Enter", nameof(HtmlCapture));
+            Check(HtmlScreenCapture.DescribeAction(new ConsoleKeyInfo('\r', ConsoleKey.Enter, true, false, false), menu)
+                == "Shift+Menu choice 1, Enter", nameof(HtmlCapture));
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.F1), menu) == "F1", nameof(HtmlCapture));
+            capture.RecordAction(choice);
+            var choiceFrame = capture.Save(menu, true)!;
+            Check(File.ReadAllText(choiceFrame).Contains("Menu choice 1, Enter", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("Menu choice 1, Enter", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(choiceFrame).Contains("<kbd>1</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("<kbd>1</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("<kbd>Enter</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            menu.Key(Key(ConsoleKey.Backspace));
+            menu.Key(new ConsoleKeyInfo('2', ConsoleKey.D2, false, false, false));
+            capture.RecordAction(Key(ConsoleKey.Enter), menu);
+            var secondChoice = capture.Save(menu, true)!;
+            Check(File.ReadAllText(secondChoice).Contains("<kbd>2</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("<kbd>2</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            menu.Key(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), menu) == "Enter", nameof(HtmlCapture));
+            display.Apply(record);
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), display) == "Enter", nameof(HtmlCapture));
+            menu.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+                0x11, 2, 9, 0x1D, 0x40, 0, 0x27, 0, 5, 0x13, 2, 10, 4, 0x52, 0, 8], 3));
+            menu.Key(new ConsoleKeyInfo('2', ConsoleKey.D2, false, false, false));
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), menu) == "Enter", nameof(HtmlCapture));
+            capture.RecordAction(Key(ConsoleKey.PageDown));
+            var pageDown = capture.Save(menu, true)!;
+            Check(File.ReadAllText(pageDown).Contains("<kbd>PageDown</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("<kbd>PageDown</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            menu.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+                0x11, 8, 2, 0x1D, 0x40, 0, 0x24, 0, 1,
+                0x11, 9, 2, 0x1D, 0x40, 0, 0x24, 0, 1, 0x13, 8, 3, 4, 0x52, 0, 8], 3));
+            menu.Key(new ConsoleKeyInfo('2', ConsoleKey.D2, false, false, false));
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), menu) == "Menu choice 2, Enter", nameof(HtmlCapture));
+            capture.RecordAction(Key(ConsoleKey.Enter), menu);
+            var rowChoice = capture.Save(menu, true)!;
+            Check(File.ReadAllText(rowChoice).Contains("<kbd>2</kbd>", StringComparison.Ordinal), nameof(HtmlCapture));
+            Check(File.ReadAllText(indexPath).Contains("Menu choice 2, Enter", StringComparison.Ordinal), nameof(HtmlCapture));
+            menu.Key(new ConsoleKeyInfo('1', ConsoleKey.D1, false, false, false));
+            Check(HtmlScreenCapture.DescribeAction(Key(ConsoleKey.Enter), menu) == "Enter", nameof(HtmlCapture));
         }
         finally
         {
@@ -300,6 +395,20 @@ internal static class Program
         Check(reply[12] == 0 && reply.Length == 26, nameof(ReadModes));
         display.Apply(GdsRecord.Create([], 10));
         Check(display.Locked && display.Key(Key(ConsoleKey.Enter)) == null, nameof(ReadModes));
+    }
+
+    private static void ReadOnlyEnter()
+    {
+        var display = new Display(_encoding, false);
+        display.Apply(GdsRecord.Create([4, 0x40, 4, 0x11, 0, 8,
+            0x11, 12, 6, 0x29, 0x6F, 0x6F, 0x6F, 0x20], 2));
+        Check(display.InputFields.Count == 0, nameof(ReadOnlyEnter));
+        Check(display.Key(Key(ConsoleKey.Enter)) == null, nameof(ReadOnlyEnter));
+        display.Apply(GdsRecord.Create([4, 0x52, 0, 8], 3));
+        var reply = display.Key(Key(ConsoleKey.Enter))!;
+        Check(reply.AsSpan(10).SequenceEqual(new byte[] { 1, 1, 0xF1 }), nameof(ReadOnlyEnter));
+        Check(display.Key(Key(ConsoleKey.Enter)) == null, nameof(ReadOnlyEnter));
+        Check(display.Character(0x6F) == '?', nameof(ReadOnlyEnter));
     }
 
     private static void Malformed()
