@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="Help" xml:space="preserve">
+    <value>5250net, an IBM i console terminal.
+Usage: 5250net HOST [options]
+  --port NUMBER       Default 23, or 992 with TLS.
+  --tls               Use direct TLS with certificate validation.
+  --device NAME       Request an IBM i display device (up to 10 characters).
+  --code-page NUMBER  EBCDIC code page, default 37.
+  --keyboard TYPE     IBM keyboard type, default USB.
+  --wide              Advertise a 27 by 132 color display.
+  --help              Show this help.
+  --version           Show the version.
+Keys: Enter, F1 through F12, Shift+F1 through Shift+F12 for F13 through F24.
+Tab and Shift+Tab select fields. Home selects the start of the field.
+Ctrl+Enter sends Field Exit. Keypad plus and minus send Field+ and Field-.
+End selects the end of its content. Insert toggles insert mode.
+Delete and Backspace edit. Ctrl+End erases to the end of the field.
+PageUp and PageDown send Roll keys. Alt+H sends Help.
+Ctrl+A sends Attention. Ctrl+S sends System Request.
+Escape resets an input error. Ctrl+Q disconnects.
+</value>
+  </data>
+  <data name="InvalidOption" xml:space="preserve">
+    <value>Invalid command line argument: {0}.</value>
+  </data>
+  <data name="HostRequired" xml:space="preserve">
+    <value>A host name is required. Use --help for usage.</value>
+  </data>
+  <data name="InvalidValue" xml:space="preserve">
+    <value>Invalid value for {0}: {1}.</value>
+  </data>
+  <data name="Error" xml:space="preserve">
+    <value>Error: {0}</value>
+  </data>
+  <data name="Redirected" xml:space="preserve">
+    <value>An interactive terminal is required for input and output.</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value> {0}  {1}x{2}  {3},{4}  {5}  Ctrl+Q exits </value>
+  </data>
+  <data name="Locked" xml:space="preserve">
+    <value>WAIT</value>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>READY</value>
+  </data>
+  <data name="InputError" xml:space="preserve">
+    <value>INPUT ERROR, Escape resets</value>
+  </data>
+  <data name="TooSmall" xml:space="preserve">
+    <value>Resize the terminal to at least {0} columns and {1} rows.</value>
+  </data>
+  <data name="BadRecord" xml:space="preserve">
+    <value>The host sent an invalid TN5250 record.</value>
+  </data>
+  <data name="UnsupportedCommand" xml:space="preserve">
+    <value>Unsupported 5250 command or order: 0x{0:X2}.</value>
+  </data>
+  <data name="BadAddress" xml:space="preserve">
+    <value>The host sent an invalid screen address.</value>
+  </data>
+  <data name="BadField" xml:space="preserve">
+    <value>The host sent an invalid field definition.</value>
+  </data>
+  <data name="RecordTooLarge" xml:space="preserve">
+    <value>The host record exceeds the protocol length limit.</value>
+  </data>
+  <data name="Truncated" xml:space="preserve">
+    <value>The connection ended in the middle of a Telnet message.</value>
+  </data>
+  <data name="NegotiationRefused" xml:space="preserve">
+    <value>The host refused a required Telnet option.</value>
+  </data>
+  <data name="BadTelnet" xml:space="preserve">
+    <value>The host sent an invalid Telnet subnegotiation.</value>
+  </data>
+  <data name="Unrepresentable" xml:space="preserve">
+    <value>This character cannot be represented by the selected EBCDIC code page.</value>
+  </data>
+  <data name="UnknownOperation" xml:space="preserve">
+    <value>Unsupported TN5250 operation: 0x{0:X2}.</value>
+  </data>
+  <data name="ConnectTimeout" xml:space="preserve">
+    <value>The connection or TLS handshake timed out.</value>
+  </data>
+  <data name="Disconnected" xml:space="preserve">
+    <value>The host closed the connection.</value>
+  </data>
+  <data name="Version" xml:space="preserve">
+    <value>5250net 0.1.0</value>
+  </data>
+  <data name="MessageWaiting" xml:space="preserve">
+    <value> MSG</value>
+  </data>
+  <data name="InsertMode" xml:space="preserve">
+    <value> INS</value>
+  </data>
+  <data name="StartupFailed" xml:space="preserve">
+    <value>IBM i session startup failed with response code {0}.</value>
+  </data>
+</root>

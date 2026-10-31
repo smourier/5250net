@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="5250net.Tests/5250net.Tests.csproj" />
+  <Project Path="5250net/5250net.csproj" />
+</Solution>
