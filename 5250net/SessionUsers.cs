@@ -32,6 +32,9 @@ internal sealed class SessionUsers : IAsyncDisposable
     private const int _launchChecks = 100;
     private const int _launchPollMilliseconds = 10;
     private const byte _stop = 1;
+    private const byte _number = 2;
+    private const int _numberLength = sizeof(int);
+    private const string _numberMutexSuffix = "-numbers";
     private static readonly string[] _terminals =
         ["xdg-terminal-exec", "alacritty", "kitty", "ghostty", "gnome-terminal", "konsole", "foot", "xterm"];
 
@@ -39,7 +42,8 @@ internal sealed class SessionUsers : IAsyncDisposable
     private static readonly string[] _removedOptions =
     [
         Options._recordOption, Options._recordAlias, Options._replayOption, Options._replayAlias,
-        Options._replayGroupOption, Options._deviceOption, Options._deviceAlias,
+        Options._replayGroupOption, Options._userNumberOption, Options._replayUserLimitOption,
+        Options._deviceOption, Options._deviceAlias,
         Options._usersOption, Options._usersAlias, Options._userIntervalOption, Options._userIntervalAlias,
     ];
 
@@ -57,8 +61,10 @@ internal sealed class SessionUsers : IAsyncDisposable
     private int _selected;
     private string? _notice;
     private bool _keepSnapshots;
+    private int _lastUserNumber;
 
     internal string DirectoryPath { get; }
+    internal int? UserNumber { get; }
     private string? _sourcePrompt;
     private long _noticeUntil;
 
@@ -87,14 +93,19 @@ internal sealed class SessionUsers : IAsyncDisposable
         _rootDirectory = rootDirectory ?? Path.Combine(Path.GetTempPath(), _directoryName);
         DirectoryPath = Path.Combine(_rootDirectory, _group);
         Directory.CreateDirectory(DirectoryPath);
-        if (options.ReplayFile != null && !options.DeviceSpecified)
+        if (options.ReplayFile != null)
         {
-            options.Device = ReplayDeviceNames.Next(_rootDirectory);
+            UserNumber = options.ReplayUserNumber;
+            _lastUserNumber = Math.Max(options.ReplayUserLimit, options.ReplayUserNumber + options.ReplayUsers - 1);
+            if (!options.DeviceSpecified)
+            {
+                options.Device = ReplayDeviceNames.Format(Environment.MachineName, UserNumber.Value);
+            }
         }
 
         _registration = Path.Combine(DirectoryPath, _id + _sessionExtension);
         var pipeName = _pipePrefix + _group + _id;
-        _pipe = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte,
+        _pipe = new NamedPipeServerStream(pipeName, PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
         using var process = Process.GetCurrentProcess();
         var pid = Environment.ProcessId.ToString(CultureInfo.InvariantCulture);
@@ -112,13 +123,29 @@ internal sealed class SessionUsers : IAsyncDisposable
                 await _pipe.WaitForConnectionAsync(_listening.Token);
                 var command = new byte[1];
                 var count = await _pipe.ReadAsync(command, _listening.Token);
-                _pipe.Disconnect();
                 if (count == 1 && command[0] == _stop)
                 {
                     File.Delete(_registration);
+                    _pipe.Disconnect();
                     _sessionCancellation.Cancel();
                     return;
                 }
+
+                if (count == 1 && command[0] == _number)
+                {
+                    var number = new byte[_numberLength];
+                    await _pipe.ReadExactlyAsync(number, _listening.Token);
+                    var minimum = BinaryPrimitives.ReadInt32LittleEndian(number);
+                    if (minimum >= 0 && minimum <= ReplayDeviceNames._maximumNumber)
+                    {
+                        Volatile.Write(ref _lastUserNumber, Math.Max(Volatile.Read(ref _lastUserNumber), minimum));
+                    }
+
+                    BinaryPrimitives.WriteInt32LittleEndian(number, Volatile.Read(ref _lastUserNumber));
+                    await _pipe.WriteAsync(number, _listening.Token);
+                }
+
+                _pipe.Disconnect();
             }
         }
         catch (Exception exception) when (exception is OperationCanceledException or IOException or ObjectDisposedException)
@@ -284,7 +311,7 @@ internal sealed class SessionUsers : IAsyncDisposable
         {
             await Task.Delay(TimeSpan.FromSeconds(_optionsForReplay.UserInterval), cancellation);
             cancellation.ThrowIfCancellationRequested();
-            Launch(_optionsForReplay.ReplayFile!);
+            Launch(_optionsForReplay.ReplayFile!, _optionsForReplay.ReplayUserNumber + user);
         }
     }
 
@@ -303,9 +330,9 @@ internal sealed class SessionUsers : IAsyncDisposable
         _keepSnapshots |= Path.GetDirectoryName(source) == DirectoryPath;
     }
 
-    private void Launch(string source)
+    private void Launch(string source, int? userNumber = null)
     {
-        var arguments = ReplayArguments(source);
+        var arguments = ReplayArguments(source, userNumber ?? AllocateUserNumber());
         var executable = Environment.ProcessPath ?? throw new InvalidOperationException(Resources.ReplayNoTerminal);
         if (OperatingSystem.IsWindows())
         {
@@ -398,7 +425,71 @@ internal sealed class SessionUsers : IAsyncDisposable
         return _quote + argument.Replace(_percent, _escapedPercent, StringComparison.Ordinal) + new string('\\', trailing) + _quote;
     }
 
-    internal string[] ReplayArguments(string source)
+    internal int AllocateUserNumber()
+    {
+        using var mutex = new Mutex(false, _pipePrefix + _group + _numberMutexSuffix);
+        try
+        {
+            if (!mutex.WaitOne(_pipeTimeout))
+                throw new TimeoutException(Resources.ReplayUserNumberTimeout);
+        }
+        catch (AbandonedMutexException)
+        {
+        }
+
+        try
+        {
+            var users = GetUsers();
+            var highest = Volatile.Read(ref _lastUserNumber);
+            foreach (var user in users)
+            {
+                try
+                {
+                    highest = Math.Max(highest, ExchangeUserNumber(user, 0));
+                }
+                catch (Exception exception) when (exception is IOException or TimeoutException)
+                {
+                }
+            }
+
+            if (highest >= ReplayDeviceNames._maximumNumber)
+                throw new InvalidOperationException(Resources.ReplayUserNumberOptions);
+
+            var next = highest + 1;
+            Volatile.Write(ref _lastUserNumber, next);
+            foreach (var user in users)
+            {
+                try
+                {
+                    ExchangeUserNumber(user, next);
+                }
+                catch (Exception exception) when (exception is IOException or TimeoutException)
+                {
+                }
+            }
+
+            return next;
+        }
+        finally
+        {
+            mutex.ReleaseMutex();
+        }
+    }
+
+    private static int ExchangeUserNumber(ReplayUser user, int number)
+    {
+        using var pipe = new NamedPipeClientStream(".", user.PipeName, PipeDirection.InOut, PipeOptions.CurrentUserOnly);
+        pipe.Connect(_pipeTimeout);
+        Span<byte> message = stackalloc byte[1 + _numberLength];
+        message[0] = _number;
+        BinaryPrimitives.WriteInt32LittleEndian(message[1..], number);
+        pipe.Write(message);
+        Span<byte> response = stackalloc byte[_numberLength];
+        pipe.ReadExactly(response);
+        return BinaryPrimitives.ReadInt32LittleEndian(response);
+    }
+
+    internal string[] ReplayArguments(string source, int userNumber)
     {
         var arguments = new List<string>();
         for (var i = 0; i < _arguments.Length; i++)
@@ -420,7 +511,9 @@ internal sealed class SessionUsers : IAsyncDisposable
             arguments.Add(argument);
         }
 
-        arguments.AddRange([Options._replayOption, Path.GetFullPath(source), Options._replayGroupOption, _group]);
+        arguments.AddRange([Options._replayOption, Path.GetFullPath(source), Options._replayGroupOption, _group,
+            Options._userNumberOption, userNumber.ToString(CultureInfo.InvariantCulture),
+            Options._replayUserLimitOption, Math.Max(userNumber, Volatile.Read(ref _lastUserNumber)).ToString(CultureInfo.InvariantCulture)]);
         return [.. arguments];
     }
 

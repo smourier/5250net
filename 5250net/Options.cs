@@ -34,7 +34,10 @@ internal sealed class Options
     internal const string _replayOption = "--replay";
     internal const string _replaySpeedOption = "--replay-speed";
     internal const string _replayTimeoutOption = "--replay-timeout";
+    internal const string _userNumberOption = "--user-number";
+    internal const string _replayUserLimitOption = "--replay-user-limit";
     internal const string _replayGroupOption = "--replay-group";
+    internal const double _fullReplayTiming = 100;
     private const double _defaultReplayTimeout = 30;
     private const double _maximumReplayTimeout = 86400;
     internal const string _helpOption = "--help";
@@ -50,9 +53,11 @@ internal sealed class Options
     internal ParseResult? Invocation { get; private set; }
     internal string? RecordFile { get; private set; }
     internal string? ReplayFile { get; private set; }
+    internal int ReplayUserNumber { get; private set; } = 1;
+    internal int ReplayUserLimit { get; private set; }
     internal int ReplayUsers { get; private set; } = 1;
     internal double UserInterval { get; private set; }
-    internal double ReplaySpeed { get; private set; } = 1;
+    internal double ReplaySpeed { get; private set; } = _fullReplayTiming;
     internal double ReplayTimeout { get; private set; } = _defaultReplayTimeout;
     internal string? ReplayGroup { get; private set; }
     internal FileInfo? TlsCertificate { get; private set; }
@@ -109,7 +114,7 @@ internal sealed class Options
         replayFile.AcceptExistingOnly();
         var replaySpeed = new Option<double>(_replaySpeedOption, _replaySpeedAlias)
         {
-            DefaultValueFactory = _ => 1,
+            DefaultValueFactory = _ => _fullReplayTiming,
             CustomParser = ParseTiming,
         };
 
@@ -129,6 +134,17 @@ internal sealed class Options
         {
             CustomParser = ParseTiming,
             Description = Resources.UserIntervalDescription,
+        };
+
+        var userNumber = new Option<int>(_userNumberOption)
+        {
+            DefaultValueFactory = _ => 1,
+            Description = Resources.ReplayUserNumberDescription,
+        };
+
+        var replayUserLimit = new Option<int>(_replayUserLimitOption)
+        {
+            Hidden = true,
         };
 
         var replayGroup = new Option<string?>(_replayGroupOption);
@@ -153,6 +169,8 @@ internal sealed class Options
         command.Options.Add(replaySpeed);
         command.Options.Add(replayTimeout);
         command.Options.Add(replayGroup);
+        command.Options.Add(userNumber);
+        command.Options.Add(replayUserLimit);
         command.Options.Add(replayUsers);
         command.Options.Add(userInterval);
         host.Description = Resources.HostDescription;
@@ -192,6 +210,8 @@ internal sealed class Options
             ReplayFile = parsed.GetValue(replayFile)?.FullName,
             ReplaySpeed = parsed.GetValue(replaySpeed),
             ReplayUsers = parsed.GetValue(replayUsers),
+            ReplayUserNumber = parsed.GetValue(userNumber),
+            ReplayUserLimit = parsed.GetValue(replayUserLimit),
             UserInterval = parsed.GetValue(userInterval),
             ReplayTimeout = parsed.GetValue(replayTimeout),
             ReplayGroup = parsed.GetValue(replayGroup),
@@ -216,7 +236,8 @@ internal sealed class Options
         if (options.RecordFile != null && (string.IsNullOrWhiteSpace(options.RecordFile) || options.ReplayFile != null))
             throw new ArgumentException(Resources.RecordingOptions);
 
-        if (!double.IsFinite(options.ReplaySpeed) || options.ReplaySpeed < 0 || !double.IsFinite(options.ReplayTimeout)
+        if (!double.IsFinite(options.ReplaySpeed) || options.ReplaySpeed < 0 || options.ReplaySpeed > _fullReplayTiming
+            || !double.IsFinite(options.ReplayTimeout)
             || options.ReplayTimeout <= 0 || options.ReplayTimeout > _maximumReplayTimeout)
             throw new ArgumentException(Resources.ReplayTimingOptions);
 
@@ -224,10 +245,18 @@ internal sealed class Options
             || options.UserInterval < 0 || options.UserInterval > _maximumReplayTimeout)
             throw new ArgumentException(Resources.ReplayUsersOptions);
 
+        var lastUser = (long)options.ReplayUserNumber + options.ReplayUsers - 1;
+        if (options.ReplayUserNumber < 1 || lastUser > ReplayDeviceNames._maximumNumber
+            || options.ReplayUserLimit < 0 || options.ReplayUserLimit > ReplayDeviceNames._maximumNumber
+            || options.ReplayUserLimit > 0 && options.ReplayUserLimit < lastUser)
+            throw new ArgumentException(Resources.ReplayUserNumberOptions);
+
         var hasReplayTiming = parsed.GetResult(replaySpeed) is { Implicit: false }
             || parsed.GetResult(replayTimeout) is { Implicit: false }
             || parsed.GetResult(replayUsers) is { Implicit: false }
-            || parsed.GetResult(userInterval) is { Implicit: false };
+            || parsed.GetResult(userInterval) is { Implicit: false }
+            || parsed.GetResult(userNumber) is { Implicit: false }
+            || parsed.GetResult(replayUserLimit) is { Implicit: false };
         if (options.ReplayFile == null && hasReplayTiming)
             throw new ArgumentException(Resources.ReplayOptions);
 

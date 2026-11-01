@@ -74,7 +74,7 @@ internal static class Program
 
             var transport = new TelnetTransport(stream, options);
             var display = new Display(encoding, options.Wide);
-            using var renderer = new ConsoleRenderer(options.Host);
+            using var renderer = new ConsoleRenderer(options.Host, users.UserNumber);
             await using var input = new ConsoleInput();
             var capture = options.CaptureDirectory == null ? null
                 : new HtmlScreenCapture(options.CaptureDirectory, options, args,

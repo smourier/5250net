@@ -57,7 +57,7 @@ Record key presses and their timing to a new file. Recordings contain typed valu
 5250net myibmi.example.com --record session.jsonl
 5250net myibmi.example.com --replay session.jsonl
 5250net myibmi.example.com --replay session.jsonl --users 5 --user-interval 0.5
-5250net myibmi.example.com --replay session.jsonl --replay-speed 2
+5250net myibmi.example.com --replay session.jsonl --replay-speed 50
 5250net myibmi.example.com --replay session.jsonl --replay-speed 0 --replay-timeout 30
 ```
 
@@ -65,7 +65,9 @@ Use `--users` or `-u` for the total user count, including the current session.
 Use `--user-interval` or `-ui` for launch spacing in seconds. The default is 0.
 Extra users use separate terminals. Quitting cancels launches that have not started.
 
-Speed 1 preserves delays, 2 doubles playback speed, and 0 removes delays while waiting for host screen updates and input readiness.
+`--replay-speed` or `-rs` sets the percentage of recorded delays, from 0 to 100. The default is 100.
+Use 50 for half the delay, 10 for one tenth, or a fractional value such as 0.1 for 0.1 percent.
+Zero removes delays. Every setting still waits for host screen updates and input readiness.
 Replay waits for the initial host screen and, after each submitted action, a host update with the keyboard unlocked.
 Screen contents can change between recording and replay. Use the recorded code page, keyboard type, and wide mode.
 A timeout, unexpected input error, missing submission, or premature disconnect stops replay with an error and exit code 1.
@@ -81,7 +83,10 @@ Normal live keys are ignored during replay. The console footer shows the file, c
 User controls request graceful disconnection.
 Replay users default to machine-based device names with numeric suffixes, such as `CLIENT_1` and `CLIENT_2`.
 The machine portion is shortened to keep the complete name within 10 characters.
-Numbering is shared across sessions for this OS account and continues across batches.
+Each new batch starts at user 1. Spawned processes receive their number through `--user-number`.
+Ctrl+N continues the batch numbering using in-memory coordination between active processes. No persistent counter is used.
+Use `--user-number N` to choose another starting number.
+The console title appends `user #N` using the assigned replay user number.
 An explicit `--device` overrides the current session.
 Windows Terminal sessions open another Terminal tab. Other Windows sessions open a new Command Prompt window.
 Command Prompt is also used if Windows Terminal cannot be launched.

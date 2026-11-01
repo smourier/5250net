@@ -43,7 +43,7 @@ internal sealed class SessionReplay
             return null;
 
         var action = _actions[_index];
-        var delay = _speed == 0 ? 0 : action.Delay / _speed;
+        var delay = action.Delay * (_speed / Options._fullReplayTiming);
         if (!double.IsFinite(delay))
             throw new InvalidDataException(Resources.ReplayTimingOptions);
 

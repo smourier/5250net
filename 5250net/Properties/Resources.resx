@@ -349,7 +349,7 @@
     <value>Use either --record FILE or --replay FILE. The recording path must not be empty.</value>
   </data>
   <data name="ReplayTimingOptions" xml:space="preserve">
-    <value>Replay speed must be zero or positive. The screen timeout must be greater than zero and at most 86400 seconds.</value>
+    <value>Replay timing must be between 0 and 100 percent. The screen timeout must be greater than zero and at most 86400 seconds.</value>
   </data>
   <data name="ReplayOptions" xml:space="preserve">
     <value>Replay timing and group options require --replay FILE.</value>
@@ -437,7 +437,7 @@ Ctrl+L stops all other sessions.</value>
     <value>Replay a completed recording in a new connection.</value>
   </data>
   <data name="ReplaySpeedDescription" xml:space="preserve">
-    <value>Playback speed multiplier. Zero removes delays but still waits for host screen updates.</value>
+    <value>Percentage of recorded delays, from 0 to 100. Fractional values are accepted. Zero still waits for host screen updates.</value>
   </data>
   <data name="ReplayTimeoutDescription" xml:space="preserve">
     <value>Maximum time to wait for the next host screen and input readiness, in seconds.</value>
@@ -478,7 +478,16 @@ Ctrl+L stops all other sessions.</value>
   <data name="ReplayUsersWaiting" xml:space="preserve">
     <value>Replay completed. Launching remaining users. Ctrl+Q stops pending launches.</value>
   </data>
-  <data name="ReplayDeviceCounter" xml:space="preserve">
-    <value>Cannot allocate a unique replay device name. The saved device counter is invalid or exhausted.</value>
+  <data name="ReplayConsoleTitle" xml:space="preserve">
+    <value>{0}, user #{1}</value>
+  </data>
+  <data name="ReplayUserNumberDescription" xml:space="preserve">
+    <value>Replay user number, or the first number for a batch. Passed automatically to spawned users.</value>
+  </data>
+  <data name="ReplayUserNumberOptions" xml:space="preserve">
+    <value>Replay user numbers must be between 1 and 99999999, including all users in the batch.</value>
+  </data>
+  <data name="ReplayUserNumberTimeout" xml:space="preserve">
+    <value>Timed out while assigning a replay user number.</value>
   </data>
 </root>

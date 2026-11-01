@@ -19,6 +19,8 @@ internal static class Program
             return;
         }
 
+        Check(ConsoleRenderer.BuildTitle("host") == "5250 - host", nameof(Main));
+        Check(ConsoleRenderer.BuildTitle("host", 1) == "5250 - host, user #1", nameof(Main));
         var banner = ConsoleRenderer.BuildBanner(2031);
         Check(banner.StartsWith("5250net - V", StringComparison.Ordinal), nameof(Main));
         Check(banner.EndsWith("2025-2031. All rights reserved.", StringComparison.Ordinal), nameof(Main));
@@ -47,7 +49,7 @@ internal static class Program
             await WindowsCommandPromptAsync();
         }
 
-        await ReplayDeviceNamesAsync();
+        ReplayDeviceNamesFormatting();
         await RecordingReplayAsync();
         await AddressFallbackAsync();
         await LocalhostConnectionAsync(IPAddress.Loopback);
@@ -524,25 +526,12 @@ internal static class Program
         Check(!display.InputError, nameof(Editing));
     }
 
-    private static async Task ReplayDeviceNamesAsync()
+    private static void ReplayDeviceNamesFormatting()
     {
-        Check(ReplayDeviceNames.Format("CLIENT", 1) == "CLIENT_1", nameof(ReplayDeviceNamesAsync));
-        Check(ReplayDeviceNames.Format("longmachinename", 1) == "LONGMACH_1", nameof(ReplayDeviceNamesAsync));
-        Check(ReplayDeviceNames.Format("longmachinename", 10) == "LONGMAC_10", nameof(ReplayDeviceNamesAsync));
-        Check(ReplayDeviceNames.Format("123pc", 99999999) == "Q_99999999", nameof(ReplayDeviceNamesAsync));
-        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directory);
-        try
-        {
-            var names = await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(() => ReplayDeviceNames.Next(directory))));
-            Check(names.Distinct(StringComparer.Ordinal).Count() == names.Length, nameof(ReplayDeviceNamesAsync));
-            Check(names.All(name => name.Length <= 10), nameof(ReplayDeviceNamesAsync));
-            Check(ReplayDeviceNames.Next(directory) == ReplayDeviceNames.Format(Environment.MachineName, 33), nameof(ReplayDeviceNamesAsync));
-        }
-        finally
-        {
-            Directory.Delete(directory, true);
-        }
+        Check(ReplayDeviceNames.Format("CLIENT", 1) == "CLIENT_1", nameof(ReplayDeviceNamesFormatting));
+        Check(ReplayDeviceNames.Format("longmachinename", 1) == "LONGMACH_1", nameof(ReplayDeviceNamesFormatting));
+        Check(ReplayDeviceNames.Format("longmachinename", 10) == "LONGMAC_10", nameof(ReplayDeviceNamesFormatting));
+        Check(ReplayDeviceNames.Format("123pc", 99999999) == "Q_99999999", nameof(ReplayDeviceNamesFormatting));
     }
 
     private static void OptionsParsing()
@@ -799,13 +788,23 @@ internal static class Program
             Check(next.Key == null, nameof(RecordingReplayAsync));
             replay.Advance(next, null, display, 0);
             Check(replay.IsComplete, nameof(RecordingReplayAsync));
-            var timed = new SessionReplay(path, Options.Parse(["localhost", "--replay", path, "--replay-speed", "2"]));
+            var timed = new SessionReplay(path, Options.Parse(["localhost", "--replay", path, "--replay-speed", "50"]));
             Check(timed.Next(NewDisplay(), 49) == null, nameof(RecordingReplayAsync));
             Check(timed.Next(NewDisplay(), 50) != null, nameof(RecordingReplayAsync));
             timed.SetPaused(true, 50);
             Check(timed.Next(NewDisplay(), 5000) == null, nameof(RecordingReplayAsync));
             timed.SetPaused(false, 5000);
             Check(timed.Next(NewDisplay(), 5000) != null, nameof(RecordingReplayAsync));
+            Check(Options.Parse(["localhost", "--replay", path]).ReplaySpeed == 100, nameof(RecordingReplayAsync));
+            var originalTiming = new SessionReplay(path, Options.Parse(["localhost", "--replay", path]));
+            Check(originalTiming.Next(NewDisplay(), 99) == null, nameof(RecordingReplayAsync));
+            Check(originalTiming.Next(NewDisplay(), 100) != null, nameof(RecordingReplayAsync));
+            var fast = new SessionReplay(path, Options.Parse(["localhost", "--replay", path, "-rs", "0.1"]));
+            Check(fast.Next(NewDisplay(), 0) == null, nameof(RecordingReplayAsync));
+            Check(fast.Next(NewDisplay(), 1) != null, nameof(RecordingReplayAsync));
+            var intermediate = new SessionReplay(path, Options.Parse(["localhost", "--replay", path, "-rs", "10"]));
+            Check(intermediate.Next(NewDisplay(), 9) == null, nameof(RecordingReplayAsync));
+            Check(intermediate.Next(NewDisplay(), 10) != null, nameof(RecordingReplayAsync));
             var loading = new Display(_encoding, false);
             loading.Apply(GdsRecord.Create([4, 0x11, 0, 8], 1));
             Check(!loading.Locked && !loading.ReadPending, nameof(RecordingReplayAsync));
@@ -853,10 +852,16 @@ internal static class Program
                 ["localhost", "--record", path, "--replay", path],
                 ["localhost", "--replay-speed", "0"],
                 ["localhost", "--users", "2"],
+                ["localhost", "--user-number", "2"],
+                ["localhost", "--replay", path, "--user-number", "0"],
+                ["localhost", "--replay", path, "--user-number", "99999999", "--users", "2"],
                 ["localhost", "--replay", path, "--users", "0"],
                 ["localhost", "--replay", path, "--user-interval", "-1"],
                 ["localhost", "--replay", path, "--user-interval", "NaN"],
                 ["localhost", "--replay", path, "--replay-speed", "-1"],
+                ["localhost", "--replay", path, "--replay-speed", "101"],
+                ["localhost", "--replay", path, "--replay-speed", "NaN"],
+                ["localhost", "--replay", path, "--replay-speed", "Infinity"],
                 ["localhost", "--replay", path, "--replay-timeout", "0"],
             ];
 
@@ -883,19 +888,21 @@ internal static class Program
             using var thirdCancellation = new CancellationTokenSource();
             await using var first = new SessionUsers(userOptions, userArguments, firstCancellation, Path.Combine(directory, "users"));
             await using var second = new SessionUsers(userOptions, userArguments, secondCancellation, Path.Combine(directory, "users"));
-            var childArguments = first.ReplayArguments(path);
+            var childArguments = first.ReplayArguments(path, 2);
             var childOptions = Options.Parse(childArguments);
             Check(childOptions.ReplayUsers == 1 && childOptions.UserInterval == 0, nameof(RecordingReplayAsync));
             Check(userOptions.Device == "DEVICE01", nameof(RecordingReplayAsync));
             using var childCancellation = new CancellationTokenSource();
             await using var child = new SessionUsers(childOptions, childArguments, childCancellation, Path.Combine(directory, "child"));
-            Check(childOptions.Device == ReplayDeviceNames.Format(Environment.MachineName, 1), nameof(RecordingReplayAsync));
-            var grandchildArguments = child.ReplayArguments(path);
+            Check(childOptions.Device == ReplayDeviceNames.Format(Environment.MachineName, 2) && child.UserNumber == 2,
+                nameof(RecordingReplayAsync));
+            var grandchildArguments = child.ReplayArguments(path, 4);
             var grandchildOptions = Options.Parse(grandchildArguments);
             using var grandchildCancellation = new CancellationTokenSource();
             await using var grandchild = new SessionUsers(grandchildOptions, grandchildArguments,
                 grandchildCancellation, Path.Combine(directory, "child"));
-            Check(grandchildOptions.Device == ReplayDeviceNames.Format(Environment.MachineName, 2), nameof(RecordingReplayAsync));
+            Check(grandchildOptions.Device == ReplayDeviceNames.Format(Environment.MachineName, 4) && grandchild.UserNumber == 4,
+                nameof(RecordingReplayAsync));
             using var launchCancellation = new CancellationTokenSource();
             launchCancellation.Cancel();
             try
@@ -912,11 +919,38 @@ internal static class Program
             string[] shortArguments = ["localhost", "-rec", "unused.jsonl", "-d=DEVICE02", "-ta", "-cp", "37"];
             await using var shortUser = new SessionUsers(Options.Parse(shortArguments), shortArguments,
                 thirdCancellation, Path.Combine(directory, "aliases"));
-            var forwarded = shortUser.ReplayArguments(path);
+            var forwarded = shortUser.ReplayArguments(path, 1);
             var forwardedOptions = Options.Parse(forwarded);
             Check(forwardedOptions.RecordFile == null && forwardedOptions.ReplayFile == Path.GetFullPath(path)
                 && !forwardedOptions.DeviceSpecified && forwardedOptions.TlsTrustAll, nameof(RecordingReplayAsync));
             Check(first.GetUsers().Count == 2, nameof(RecordingReplayAsync));
+            Check(first.AllocateUserNumber() == 4, nameof(RecordingReplayAsync));
+            Check(second.AllocateUserNumber() == 5, nameof(RecordingReplayAsync));
+            Check(first.AllocateUserNumber() == 6, nameof(RecordingReplayAsync));
+            var numbers = await Task.WhenAll(Enumerable.Range(0, 6).Select(index => Task.Factory.StartNew(
+                () => (index % 2 == 0 ? first : second).AllocateUserNumber(), CancellationToken.None,
+                TaskCreationOptions.LongRunning, TaskScheduler.Default)));
+            Check(numbers.Order().SequenceEqual(Enumerable.Range(7, 6)), nameof(RecordingReplayAsync));
+            Check(!Directory.EnumerateFiles(directory, "*.counter", SearchOption.AllDirectories).Any(), nameof(RecordingReplayAsync));
+            var restartOptions = Options.Parse(["localhost", "--replay", path]);
+            using var restartCancellation = new CancellationTokenSource();
+            await using var restarted = new SessionUsers(restartOptions, ["localhost", "--replay", path],
+                restartCancellation, Path.Combine(directory, "restarted"));
+            Check(restarted.UserNumber == 1 && restarted.AllocateUserNumber() == 2, nameof(RecordingReplayAsync));
+            var transferGroup = Guid.NewGuid().ToString("N");
+            string[] ownerArguments = ["localhost", "--replay", path, "--users", "3", "--replay-group", transferGroup];
+            string[] survivorArguments = ["localhost", "--replay", path, "--user-number", "2", "--replay-group", transferGroup];
+            using var ownerCancellation = new CancellationTokenSource();
+            using var survivorCancellation = new CancellationTokenSource();
+            var transferDirectory = Path.Combine(directory, "transfer");
+            await using var survivor = new SessionUsers(Options.Parse(survivorArguments), survivorArguments,
+                survivorCancellation, transferDirectory);
+            await using (var owner = new SessionUsers(Options.Parse(ownerArguments), ownerArguments, ownerCancellation, transferDirectory))
+            {
+                Check(owner.AllocateUserNumber() == 4, nameof(RecordingReplayAsync));
+            }
+
+            Check(survivor.AllocateUserNumber() == 5, nameof(RecordingReplayAsync));
             Check(!await first.HandleAsync(Key(ConsoleKey.A, 'a'), display, null, replay, 0), nameof(RecordingReplayAsync));
             Check(await first.HandleAsync(new ConsoleKeyInfo('\v', ConsoleKey.K, false, false, true), display, null, replay, 0),
                 nameof(RecordingReplayAsync));

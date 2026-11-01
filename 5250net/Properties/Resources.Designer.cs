@@ -809,20 +809,20 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to {0}, user #{1}.
+        /// </summary>
+        internal static string ReplayConsoleTitle {
+            get {
+                return ResourceManager.GetString("ReplayConsoleTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Replay a completed recording in a new connection..
         /// </summary>
         internal static string ReplayDescription {
             get {
                 return ResourceManager.GetString("ReplayDescription", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Cannot allocate a unique replay device name. The saved device counter is invalid or exhausted..
-        /// </summary>
-        internal static string ReplayDeviceCounter {
-            get {
-                return ResourceManager.GetString("ReplayDeviceCounter", resourceCulture);
             }
         }
         
@@ -890,7 +890,7 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Playback speed multiplier. Zero removes delays but still waits for host screen updates..
+        ///   Looks up a localized string similar to Percentage of recorded delays, from 0 to 100. Fractional values are accepted. Zero still waits for host screen updates..
         /// </summary>
         internal static string ReplaySpeedDescription {
             get {
@@ -926,7 +926,7 @@ namespace Terminal5250.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Replay speed must be zero or positive. The screen timeout must be greater than zero and at most 86400 seconds..
+        ///   Looks up a localized string similar to Replay timing must be between 0 and 100 percent. The screen timeout must be greater than zero and at most 86400 seconds..
         /// </summary>
         internal static string ReplayTimingOptions {
             get {
@@ -958,6 +958,33 @@ namespace Terminal5250.Properties {
         internal static string ReplayUserError {
             get {
                 return ResourceManager.GetString("ReplayUserError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay user number, or the first number for a batch. Passed automatically to spawned users..
+        /// </summary>
+        internal static string ReplayUserNumberDescription {
+            get {
+                return ResourceManager.GetString("ReplayUserNumberDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replay user numbers must be between 1 and 99999999, including all users in the batch..
+        /// </summary>
+        internal static string ReplayUserNumberOptions {
+            get {
+                return ResourceManager.GetString("ReplayUserNumberOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Timed out while assigning a replay user number..
+        /// </summary>
+        internal static string ReplayUserNumberTimeout {
+            get {
+                return ResourceManager.GetString("ReplayUserNumberTimeout", resourceCulture);
             }
         }
         

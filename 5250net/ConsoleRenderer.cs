@@ -33,7 +33,7 @@ internal sealed class ConsoleRenderer : IDisposable
         ConsoleColor.Cyan, ConsoleColor.Yellow, ConsoleColor.Magenta, ConsoleColor.Blue,
     ];
 
-    internal ConsoleRenderer(string host)
+    internal ConsoleRenderer(string host, int? userNumber = null)
     {
         _host = host;
         _foreground = Console.ForegroundColor;
@@ -41,7 +41,7 @@ internal sealed class ConsoleRenderer : IDisposable
         _encoding = Console.OutputEncoding;
         Console.OutputEncoding = new UTF8Encoding(false);
         Console.Clear();
-        var title = string.Format(CultureInfo.InvariantCulture, Resources.ConsoleTitle, host);
+        var title = BuildTitle(host, userNumber);
         if (OperatingSystem.IsWindows())
         {
             _title = Console.Title;
@@ -52,6 +52,13 @@ internal sealed class ConsoleRenderer : IDisposable
             Console.Write(_saveTitle);
             Console.Title = title;
         }
+    }
+
+    internal static string BuildTitle(string host, int? userNumber = null)
+    {
+        var title = string.Format(CultureInfo.InvariantCulture, Resources.ConsoleTitle, host);
+        return userNumber.HasValue
+            ? string.Format(CultureInfo.InvariantCulture, Resources.ReplayConsoleTitle, title, userNumber.Value) : title;
     }
 
     internal bool Resized() => Console.WindowWidth != _width || Console.WindowHeight != _height;
